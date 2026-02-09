@@ -1,0 +1,34 @@
+{
+    "schema_version": "v1",
+    "name_for_human": "KithLy Gift Delivery",
+    "name_for_model": "kithly_gifts",
+    "description_for_human": "Send gifts to loved ones in Zambia - groceries, medicine, hardware - delivered by local riders with ZRA tax compliance.",
+    "description_for_model": "KithLy is a Global Gifting Protocol for Zambia. Use this to search for products, calculate prices in GBP/USD, and initiate gift deliveries to cities like Lusaka, Kitwe, and Ndola. All transactions are ZRA tax-compliant. Key endpoints: /search-gifts for product discovery, /pricing/calculate for currency conversion with fees.",
+    "auth": {
+        "type": "none"
+    },
+    "api": {
+        "type": "openapi",
+        "url": "https://api.kithly.com/openapi.json"
+    },
+    "logo_url": "https://kithly.com/logo.png",
+    "contact_email": "agents@kithly.com",
+    "legal_info_url": "https://kithly.com/legal",
+    "endpoints": {
+        "search_gifts": {
+            "path": "/agents/search-gifts",
+            "method": "GET",
+            "description": "Search for giftable products by natural language query"
+        },
+        "calculate_price": {
+            "path": "/pricing/calculate",
+            "method": "POST",
+            "description": "Calculate final price with all fees in GBP or USD"
+        },
+        "ai_instructions": {
+            "path": "/agents/ai-instructions",
+            "method": "GET",
+            "description": "Get rules of engagement for AI agents"
+        }
+    }
+}

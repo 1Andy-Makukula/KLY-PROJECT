@@ -1,0 +1,63 @@
+# =============================================================================
+# KithLy Gateway (.gitignore)
+# =============================================================================
+
+# --- ENVIRONMENT SECRETS (CRITICAL) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- KEYS & CERTIFICATES ---
+*.pem
+*.key
+*.crt
+*.p12
+firebase-admin-sdk.json
+service-account.json
+
+# --- PYTHON ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.eggs/
+*.egg-info/
+*.egg
+
+# --- DISTRIBUTION ---
+dist/
+build/
+*.whl
+
+# --- TESTING ---
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# --- LOGS ---
+*.log
+logs/
+
+# --- LOCAL DATABASES ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- MISC ---
+.cache/
+.temp/

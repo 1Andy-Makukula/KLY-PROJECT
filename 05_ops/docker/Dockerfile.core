@@ -1,0 +1,32 @@
+# KithLy Core Engine - C++23 Build
+FROM gcc:13 AS builder
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source
+COPY 02_core_logic/ .
+
+# Build
+RUN mkdir build && cd build \
+    && cmake -DCMAKE_BUILD_TYPE=Release .. \
+    && make -j$(nproc)
+
+# Runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/build/kithly_core /usr/local/bin/
+
+ENV KITHLY_PORT=50051
+EXPOSE 50051
+
+CMD ["kithly_core"]
