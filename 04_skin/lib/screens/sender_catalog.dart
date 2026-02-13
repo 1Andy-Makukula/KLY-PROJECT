@@ -7,40 +7,16 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state_machine/gift_provider.dart';
+import '../state_machine/product_provider.dart';
 import '../services/currency_service.dart';
 import '../widgets/shimmer_widgets.dart';
 import '../widgets/proof_card.dart';
 import '../state_machine/protocol_mapper.dart';
 
-/// Product model
-class Product {
-  final String skuId;
-  final String shopId;
-  final String shopName;
-  final String shopCity;
-  final String name;
-  final double priceZmw;
-  final int stockLevel;
-  final String? imageUrl;
-  final String category;
-  
-  Product({
-    required this.skuId,
-    required this.shopId,
-    required this.shopName,
-    required this.shopCity,
-    required this.name,
-    required this.priceZmw,
-    required this.stockLevel,
-    this.imageUrl,
-    this.category = 'General',
-  });
-}
-
 /// Sender catalog screen with Consumer-based reactivity
 class SenderCatalogScreen extends StatefulWidget {
   const SenderCatalogScreen({super.key});
-  
+
   @override
   State<SenderCatalogScreen> createState() => _SenderCatalogScreenState();
 }
@@ -49,75 +25,16 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
   final CurrencyService _currencyService = CurrencyService.instance;
   String _displayCurrency = 'USD';
   bool _isLoading = true;
-  List<Product> _products = [];
-  
+
   @override
   void initState() {
     super.initState();
-    _loadProducts();
-  }
-  
-  Future<void> _loadProducts() async {
-    // Simulate network delay for shimmer effect demo
-    await Future.delayed(const Duration(seconds: 2));
-    
-    setState(() {
-      _products = [
-        Product(
-          skuId: 'SKU-SHOP-001',
-          shopId: 'shop-1',
-          shopName: 'Shoprite Manda Hill',
-          shopCity: 'Lusaka',
-          name: 'Coca-Cola 2L',
-          priceZmw: 45.00,
-          stockLevel: 150,
-          category: 'Beverages',
-        ),
-        Product(
-          skuId: 'SKU-SHOP-002',
-          shopId: 'shop-1',
-          shopName: 'Shoprite Manda Hill',
-          shopCity: 'Lusaka',
-          name: 'White Bread Loaf',
-          priceZmw: 32.00,
-          stockLevel: 80,
-          category: 'Bakery',
-        ),
-        Product(
-          skuId: 'SKU-HW-001',
-          shopId: 'shop-2',
-          shopName: 'Chilenje Hardware',
-          shopCity: 'Lusaka',
-          name: 'Hammer 500g',
-          priceZmw: 85.00,
-          stockLevel: 25,
-          category: 'Tools',
-        ),
-        Product(
-          skuId: 'SKU-PHARM-001',
-          shopId: 'shop-3',
-          shopName: 'Rhodes Park Pharmacy',
-          shopCity: 'Lusaka',
-          name: 'Paracetamol 500mg',
-          priceZmw: 28.00,
-          stockLevel: 200,
-          category: 'Medicine',
-        ),
-        Product(
-          skuId: 'SKU-GROC-001',
-          shopId: 'shop-1',
-          shopName: 'Shoprite Manda Hill',
-          shopCity: 'Lusaka',
-          name: '5kg Mealie Meal',
-          priceZmw: 120.00,
-          stockLevel: 60,
-          category: 'Groceries',
-        ),
-      ];
-      _isLoading = false;
+    // Simulate initial load for shimmer effect
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _isLoading = false);
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -134,18 +51,35 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
               return const SizedBox.shrink();
             },
           ),
-          
-          // Product list
+
+          // Product list — Live Mirror via ProductProvider
           Expanded(
             child: _isLoading
                 ? _buildShimmerList()
-                : _buildProductList(),
+                : Consumer<ProductProvider>(
+                    builder: (context, productProvider, _) {
+                      final products = productProvider.availableProducts;
+                      if (products.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No products available',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: products.length,
+                        itemBuilder: (_, i) => _buildProductCard(products[i]),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
-  
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.transparent,
@@ -200,7 +134,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       ],
     );
   }
-  
+
   PopupMenuItem<String> _buildCurrencyMenuItem(String code, String flag) {
     return PopupMenuItem(
       value: code,
@@ -213,12 +147,12 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       ),
     );
   }
-  
+
   /// Active gift status overlay with Consumer-reactive updates
   Widget _buildActiveGiftOverlay(GiftProvider provider) {
     final gift = provider.activeGift!;
     final uiState = gift.uiState;
-    
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.all(16),
@@ -234,7 +168,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       ),
     );
   }
-  
+
   /// Shimmer loading list
   Widget _buildShimmerList() {
     return ListView.builder(
@@ -243,21 +177,12 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       itemBuilder: (_, __) => const ShimmerProductCard(),
     );
   }
-  
-  /// Product list
-  Widget _buildProductList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _products.length,
-      itemBuilder: (context, index) => _buildProductCard(_products[index]),
-    );
-  }
-  
-  Widget _buildProductCard(Product product) {
+
+  Widget _buildProductCard(ProductModel product) {
     final displayPrice = _displayCurrency == 'ZMW'
         ? 'K${product.priceZmw.toStringAsFixed(2)}'
         : _currencyService.format(product.priceZmw, _displayCurrency);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -305,7 +230,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Product info
                 Expanded(
                   child: Column(
@@ -322,12 +247,14 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.store, size: 12, color: Colors.white38),
+                          const Icon(Icons.store,
+                              size: 12, color: Colors.white38),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               product.shopName,
-                              style: const TextStyle(color: Colors.white38, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white38, fontSize: 12),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -358,7 +285,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Send button
                 Container(
                   decoration: BoxDecoration(
@@ -379,12 +306,14 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Send', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text('Send',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -394,11 +323,11 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       ),
     );
   }
-  
-  void _showSendDialog(Product product) {
+
+  void _showSendDialog(ProductModel product) {
     final phoneController = TextEditingController();
     final nameController = TextEditingController();
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -434,7 +363,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Title
             Text(
               'Send ${product.name}',
@@ -450,29 +379,31 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
               style: const TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            
+
             // Form fields
             _buildTextField(nameController, 'Receiver Name', Icons.person),
             const SizedBox(height: 16),
             _buildTextField(
-              phoneController, 
-              'Phone Number', 
+              phoneController,
+              'Phone Number',
               Icons.phone,
               prefix: '+260 ',
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 24),
-            
+
             // Pay button
             Consumer<GiftProvider>(
               builder: (context, provider, _) {
                 return ElevatedButton(
                   onPressed: provider.isProcessingPayment
                       ? null
-                      : () => _processGift(product, nameController.text, phoneController.text),
+                      : () => _processGift(
+                          product, nameController.text, phoneController.text),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
-                    disabledBackgroundColor: const Color(0xFF10B981).withOpacity(0.5),
+                    disabledBackgroundColor:
+                        const Color(0xFF10B981).withOpacity(0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -502,7 +433,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       ),
     );
   }
-  
+
   Widget _buildTextField(
     TextEditingController controller,
     String label,
@@ -533,19 +464,20 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       ),
     );
   }
-  
-  Future<void> _processGift(Product product, String name, String phone) async {
+
+  Future<void> _processGift(
+      ProductModel product, String name, String phone) async {
     if (name.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields')),
       );
       return;
     }
-    
+
     Navigator.pop(context); // Close bottom sheet
-    
+
     final provider = context.read<GiftProvider>();
-    
+
     try {
       // Create gift (Status 100)
       final gift = await provider.createGift(
@@ -556,14 +488,13 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
         productName: product.name,
         unitPrice: product.priceZmw,
       );
-      
+
       // Process payment (100 → 200)
       await provider.processPayment(
         txId: gift.txId,
         zmwAmount: product.priceZmw,
         displayCurrency: _displayCurrency,
       );
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -572,7 +503,7 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
       }
     }
   }
-  
+
   void _showGiftTracking(Gift gift) {
     Navigator.push(
       context,
@@ -586,9 +517,9 @@ class _SenderCatalogScreenState extends State<SenderCatalogScreen> {
 /// Gift tracking screen with proof card
 class GiftTrackingScreen extends StatelessWidget {
   final String txId;
-  
+
   const GiftTrackingScreen({super.key, required this.txId});
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -604,9 +535,9 @@ class GiftTrackingScreen extends StatelessWidget {
             (g) => g.txId == txId,
             orElse: () => throw Exception('Gift not found'),
           );
-          
+
           final uiState = gift.uiState;
-          
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -620,7 +551,7 @@ class GiftTrackingScreen extends StatelessWidget {
                   isPulsing: uiState.isPulsing,
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Progress
                 LinearProgressIndicator(
                   value: gift.progress,
@@ -630,13 +561,14 @@ class GiftTrackingScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Details
                 _buildDetailCard('Product', gift.productName),
                 _buildDetailCard('Receiver', gift.receiverName),
-                _buildDetailCard('Amount', 'K${gift.totalAmount.toStringAsFixed(2)}'),
+                _buildDetailCard(
+                    'Amount', 'K${gift.totalAmount.toStringAsFixed(2)}'),
                 _buildDetailCard('Order ID', gift.txRef),
-                
+
                 // Proof card (only shows at status 400)
                 if (gift.status == 400) ...[
                   const SizedBox(height: 24),
@@ -655,7 +587,7 @@ class GiftTrackingScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildDetailCard(String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -672,7 +604,8 @@ class GiftTrackingScreen extends StatelessWidget {
           Flexible(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
               overflow: TextOverflow.ellipsis,
             ),
           ),

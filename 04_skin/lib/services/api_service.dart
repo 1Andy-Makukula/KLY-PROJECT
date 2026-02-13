@@ -10,14 +10,9 @@ class ApiService {
   static String? _accessToken;
 
   Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-  };
-
-  static Map<String, String> get _staticHeaders => {
-    'Content-Type': 'application/json',
-    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-  };
+        'Content-Type': 'application/json',
+        if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+      };
 
   void setToken(String token) => _accessToken = token;
   void clearToken() => _accessToken = null;
@@ -66,10 +61,10 @@ class ApiService {
   // ===========================================================================
 
   /// Get shop dashboard data (revenue, pending orders)
-  static Future<Map<String, dynamic>> getShopDashboard(String shopId) async {
+  Future<Map<String, dynamic>> getShopDashboard(String shopId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/shop/$shopId/dashboard'),
-      headers: _staticHeaders,
+      headers: _headers,
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to load dashboard: ${response.statusCode}');
@@ -78,10 +73,10 @@ class ApiService {
   }
 
   /// Get shop orders (Status 300 - Ready for Collection)
-  static Future<Map<String, dynamic>> getShopOrders(String shopId) async {
+  Future<Map<String, dynamic>> getShopOrders(String shopId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/shop/$shopId/orders'),
-      headers: _staticHeaders,
+      headers: _headers,
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to load orders: ${response.statusCode}');
@@ -90,13 +85,13 @@ class ApiService {
   }
 
   /// Cancel an order (out of stock)
-  static Future<Map<String, dynamic>> cancelOrder(
+  Future<Map<String, dynamic>> cancelOrder(
     String txId,
     String reason,
   ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/shop/orders/$txId/cancel'),
-      headers: _staticHeaders,
+      headers: _headers,
       body: jsonEncode({'reason': reason}),
     );
     if (response.statusCode != 200) {
@@ -110,14 +105,14 @@ class ApiService {
   // ===========================================================================
 
   /// Verify collection token (QR scan or manual entry)
-  static Future<Map<String, dynamic>> verifyHandshake({
+  Future<Map<String, dynamic>> verifyHandshake({
     required String token,
     required String shopId,
     String verifiedBy = 'shop_scan',
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/verification/verify-handshake'),
-      headers: _staticHeaders,
+      headers: _headers,
       body: jsonEncode({
         'tx_id': '', // Backend will resolve from token
         'collection_token': token,
@@ -136,10 +131,10 @@ class ApiService {
   // ===========================================================================
 
   /// Get pending shop approvals
-  static Future<List<dynamic>> getPendingShops() async {
+  Future<List<dynamic>> getPendingShops() async {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/shops/pending'),
-      headers: _staticHeaders,
+      headers: _headers,
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to load pending shops: ${response.statusCode}');
@@ -148,13 +143,13 @@ class ApiService {
   }
 
   /// Approve a pending shop
-  static Future<Map<String, dynamic>> approveShop(
+  Future<Map<String, dynamic>> approveShop(
     String shopId, {
     String? notes,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/admin/shops/$shopId/approve'),
-      headers: _staticHeaders,
+      headers: _headers,
       body: jsonEncode({'notes': notes}),
     );
     if (response.statusCode != 200) {
@@ -164,13 +159,13 @@ class ApiService {
   }
 
   /// Reject a pending shop
-  static Future<Map<String, dynamic>> rejectShop(
+  Future<Map<String, dynamic>> rejectShop(
     String shopId, {
     required String reason,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/admin/shops/$shopId/reject'),
-      headers: _staticHeaders,
+      headers: _headers,
       body: jsonEncode({'reason': reason}),
     );
     if (response.statusCode != 200) {
@@ -180,10 +175,10 @@ class ApiService {
   }
 
   /// Get active riders with locations
-  static Future<List<dynamic>> getActiveRiders() async {
+  Future<List<dynamic>> getActiveRiders() async {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/riders/active'),
-      headers: _staticHeaders,
+      headers: _headers,
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to load riders: ${response.statusCode}');
@@ -191,4 +186,3 @@ class ApiService {
     return jsonDecode(response.body);
   }
 }
-

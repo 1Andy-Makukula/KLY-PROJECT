@@ -2,7 +2,7 @@
 /// KithLy Global Protocol - FLIGHT MAP (Phase IV-Extension)
 /// flight_map.dart - Active Riders Map View
 /// =============================================================================
-/// 
+///
 /// GoogleMap showing active Riders (Status 300) across Lusaka.
 library;
 
@@ -21,7 +21,7 @@ class ActiveRider {
   final String currentOrderId;
   final String status;
   final DateTime lastUpdate;
-  
+
   ActiveRider({
     required this.riderId,
     required this.name,
@@ -31,7 +31,7 @@ class ActiveRider {
     required this.status,
     required this.lastUpdate,
   });
-  
+
   factory ActiveRider.fromJson(Map<String, dynamic> json) {
     return ActiveRider(
       riderId: json['rider_id'] ?? '',
@@ -40,7 +40,8 @@ class ActiveRider {
       longitude: (json['longitude'] ?? 0).toDouble(),
       currentOrderId: json['current_order_id'] ?? '',
       status: json['status'] ?? 'active',
-      lastUpdate: DateTime.tryParse(json['last_update'] ?? '') ?? DateTime.now(),
+      lastUpdate:
+          DateTime.tryParse(json['last_update'] ?? '') ?? DateTime.now(),
     );
   }
 }
@@ -48,21 +49,22 @@ class ActiveRider {
 /// Flight Map showing active riders
 class FlightMap extends StatefulWidget {
   const FlightMap({super.key});
-  
+
   @override
   State<FlightMap> createState() => _FlightMapState();
 }
 
 class _FlightMapState extends State<FlightMap> {
+  final ApiService _api = ApiService();
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
   List<ActiveRider> _riders = [];
   bool _isLoading = true;
   Timer? _refreshTimer;
-  
+
   // Lusaka center coordinates
   static const LatLng _lusakaCenter = LatLng(-15.3875, 28.3228);
-  
+
   @override
   void initState() {
     super.initState();
@@ -73,27 +75,27 @@ class _FlightMapState extends State<FlightMap> {
       (_) => _loadRiders(),
     );
   }
-  
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
     _mapController?.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadRiders() async {
     try {
-      final data = await ApiService.getActiveRiders();
+      final data = await _api.getActiveRiders();
       _riders = data.map((json) => ActiveRider.fromJson(json)).toList();
     } catch (e) {
       // Use mock data for development
       _riders = _getMockRiders();
     }
-    
+
     _updateMarkers();
     setState(() => _isLoading = false);
   }
-  
+
   List<ActiveRider> _getMockRiders() {
     return [
       ActiveRider(
@@ -125,7 +127,7 @@ class _FlightMapState extends State<FlightMap> {
       ),
     ];
   }
-  
+
   void _updateMarkers() {
     _markers = _riders.map((rider) {
       return Marker(
@@ -144,7 +146,7 @@ class _FlightMapState extends State<FlightMap> {
       );
     }).toSet();
   }
-  
+
   void _showRiderDetails(ActiveRider rider) {
     showModalBottomSheet(
       context: context,
@@ -207,7 +209,9 @@ class _FlightMapState extends State<FlightMap> {
                           borderRadius: AlphaTheme.chipRadius,
                         ),
                         child: Text(
-                          rider.status == 'delivering' ? 'DELIVERING' : 'PICKING UP',
+                          rider.status == 'delivering'
+                              ? 'DELIVERING'
+                              : 'PICKING UP',
                           style: TextStyle(
                             color: rider.status == 'delivering'
                                 ? AlphaTheme.accentGreen
@@ -223,12 +227,14 @@ class _FlightMapState extends State<FlightMap> {
               ],
             ),
             const SizedBox(height: 24),
-            _buildDetailRow(Icons.location_on, 'Location', 
+            _buildDetailRow(Icons.location_on, 'Location',
                 '${rider.latitude.toStringAsFixed(4)}, ${rider.longitude.toStringAsFixed(4)}'),
             const SizedBox(height: 12),
-            _buildDetailRow(Icons.receipt_long, 'Current Order', rider.currentOrderId),
+            _buildDetailRow(
+                Icons.receipt_long, 'Current Order', rider.currentOrderId),
             const SizedBox(height: 12),
-            _buildDetailRow(Icons.access_time, 'Last Update', _getTimeAgo(rider.lastUpdate)),
+            _buildDetailRow(Icons.access_time, 'Last Update',
+                _getTimeAgo(rider.lastUpdate)),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -266,7 +272,7 @@ class _FlightMapState extends State<FlightMap> {
       ),
     );
   }
-  
+
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Row(
       children: [
@@ -287,7 +293,7 @@ class _FlightMapState extends State<FlightMap> {
       ],
     );
   }
-  
+
   void _focusOnRider(ActiveRider rider) {
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
@@ -296,11 +302,11 @@ class _FlightMapState extends State<FlightMap> {
       ),
     );
   }
-  
+
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inSeconds < 60) {
       return 'Just now';
     } else if (difference.inMinutes < 60) {
@@ -309,7 +315,7 @@ class _FlightMapState extends State<FlightMap> {
       return '${difference.inHours}h ago';
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -330,7 +336,7 @@ class _FlightMapState extends State<FlightMap> {
           zoomControlsEnabled: false,
           compassEnabled: false,
         ),
-        
+
         // Loading indicator
         if (_isLoading)
           const Center(
@@ -338,7 +344,7 @@ class _FlightMapState extends State<FlightMap> {
               valueColor: AlwaysStoppedAnimation<Color>(AlphaTheme.accentBlue),
             ),
           ),
-        
+
         // Stats overlay
         Positioned(
           top: 16,
@@ -379,7 +385,7 @@ class _FlightMapState extends State<FlightMap> {
             ),
           ),
         ),
-        
+
         // Rider list (bottom)
         if (_riders.isNotEmpty)
           Positioned(
@@ -454,7 +460,7 @@ class _FlightMapState extends State<FlightMap> {
       ],
     );
   }
-  
+
   Widget _buildStatBadge(
     IconData icon,
     String value,
@@ -492,7 +498,7 @@ class _FlightMapState extends State<FlightMap> {
       ],
     );
   }
-  
+
   // Dark map style
   static const String _mapStyle = '''
 [

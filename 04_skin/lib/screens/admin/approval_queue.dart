@@ -2,13 +2,14 @@
 /// KithLy Global Protocol - APPROVAL QUEUE (Phase IV-Extension)
 /// approval_queue.dart - Pending Shop Approvals
 /// =============================================================================
-/// 
+///
 /// Lists shops with admin_approval_status = 'pending'.
 /// Shows NRC photo, satellite location, approve/reject actions.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:math' as math;
 import '../../theme/alpha_theme.dart';
 import '../../services/api_service.dart';
 
@@ -27,7 +28,7 @@ class PendingShop {
   final String? email;
   final String? phone;
   final DateTime createdAt;
-  
+
   PendingShop({
     required this.shopId,
     required this.name,
@@ -43,7 +44,7 @@ class PendingShop {
     this.phone,
     required this.createdAt,
   });
-  
+
   factory PendingShop.fromJson(Map<String, dynamic> json) {
     return PendingShop(
       shopId: json['shop_id'] ?? '',
@@ -66,40 +67,41 @@ class PendingShop {
 /// Approval Queue showing pending shop applications
 class ApprovalQueue extends StatefulWidget {
   const ApprovalQueue({super.key});
-  
+
   @override
   State<ApprovalQueue> createState() => _ApprovalQueueState();
 }
 
 class _ApprovalQueueState extends State<ApprovalQueue> {
+  final ApiService _api = ApiService();
   List<PendingShop> _pendingShops = [];
   bool _isLoading = true;
   String? _error;
-  
+
   @override
   void initState() {
     super.initState();
     _loadPendingShops();
   }
-  
+
   Future<void> _loadPendingShops() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
-    
+
     try {
-      final data = await ApiService.getPendingShops();
+      final data = await _api.getPendingShops();
       _pendingShops = data.map((json) => PendingShop.fromJson(json)).toList();
     } catch (e) {
       _error = e.toString();
       // Use mock data for development
       _pendingShops = _getMockShops();
     }
-    
+
     setState(() => _isLoading = false);
   }
-  
+
   List<PendingShop> _getMockShops() {
     return [
       PendingShop(
@@ -130,39 +132,39 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
       ),
     ];
   }
-  
+
   Future<void> _approveShop(PendingShop shop) async {
     final confirmed = await _showConfirmDialog(
       'Approve ${shop.name}?',
       'This will activate the shop and allow them to receive orders.',
       isApprove: true,
     );
-    
+
     if (confirmed != true) return;
-    
+
     try {
-      await ApiService.approveShop(shop.shopId);
+      await _api.approveShop(shop.shopId);
       _showSnackbar('${shop.name} approved!', isSuccess: true);
       _loadPendingShops();
     } catch (e) {
       _showSnackbar('Failed to approve: $e', isSuccess: false);
     }
   }
-  
+
   Future<void> _rejectShop(PendingShop shop) async {
     final reason = await _showRejectDialog(shop.name);
-    
+
     if (reason == null) return;
-    
+
     try {
-      await ApiService.rejectShop(shop.shopId, reason: reason);
+      await _api.rejectShop(shop.shopId, reason: reason);
       _showSnackbar('${shop.name} rejected', isSuccess: true);
       _loadPendingShops();
     } catch (e) {
       _showSnackbar('Failed to reject: $e', isSuccess: false);
     }
   }
-  
+
   void _showSnackbar(String message, {required bool isSuccess}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -181,7 +183,7 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -191,7 +193,7 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
         ),
       );
     }
-    
+
     if (_error != null && _pendingShops.isEmpty) {
       return Center(
         child: Column(
@@ -216,7 +218,7 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
         ),
       );
     }
-    
+
     if (_pendingShops.isEmpty) {
       return Center(
         child: Column(
@@ -248,7 +250,7 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
         ),
       );
     }
-    
+
     return RefreshIndicator(
       onRefresh: _loadPendingShops,
       color: AlphaTheme.accentBlue,
@@ -264,7 +266,7 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
       ),
     );
   }
-  
+
   Future<bool?> _showConfirmDialog(
     String title,
     String message, {
@@ -276,7 +278,8 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
         backgroundColor: AlphaTheme.backgroundCard,
         shape: RoundedRectangleBorder(borderRadius: AlphaTheme.cardRadius),
         title: Text(title, style: const TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: AlphaTheme.textSecondary)),
+        content: Text(message,
+            style: const TextStyle(color: AlphaTheme.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -284,17 +287,18 @@ class _ApprovalQueueState extends State<ApprovalQueue> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: isApprove ? AlphaTheme.successButton : AlphaTheme.dangerButton,
+            style:
+                isApprove ? AlphaTheme.successButton : AlphaTheme.dangerButton,
             child: Text(isApprove ? 'Approve' : 'Confirm'),
           ),
         ],
       ),
     );
   }
-  
+
   Future<String?> _showRejectDialog(String shopName) {
     final controller = TextEditingController();
-    
+
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -356,13 +360,13 @@ class _ShopApprovalCard extends StatelessWidget {
   final PendingShop shop;
   final VoidCallback onApprove;
   final VoidCallback onReject;
-  
+
   const _ShopApprovalCard({
     required this.shop,
     required this.onApprove,
     required this.onReject,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -403,7 +407,7 @@ class _ShopApprovalCard extends StatelessWidget {
                       : const Icon(Icons.store, color: AlphaTheme.accentBlue),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Shop details
                 Expanded(
                   child: Column(
@@ -431,10 +435,11 @@ class _ShopApprovalCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Time badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AlphaTheme.accentAmber.withOpacity(0.2),
                     borderRadius: AlphaTheme.chipRadius,
@@ -451,10 +456,10 @@ class _ShopApprovalCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Divider
           Divider(color: Colors.white.withOpacity(0.1), height: 1),
-          
+
           // Details Row
           Padding(
             padding: const EdgeInsets.all(16),
@@ -472,7 +477,9 @@ class _ShopApprovalCard extends StatelessWidget {
                 Expanded(
                   child: _buildDetailChip(
                     Icons.badge,
-                    shop.tpin != null ? 'TPIN: ${shop.tpin!.substring(0, 4)}...' : 'No TPIN',
+                    shop.tpin != null
+                        ? 'TPIN: ${shop.tpin!.substring(0, 4)}...'
+                        : 'No TPIN',
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -487,7 +494,7 @@ class _ShopApprovalCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Satellite Map Preview (if coordinates available)
           if (shop.latitude != null && shop.longitude != null)
             Container(
@@ -539,7 +546,7 @@ class _ShopApprovalCard extends StatelessWidget {
                 ),
               ),
             ),
-          
+
           // NRC Preview (if available)
           if (shop.nrcIdUrl != null)
             Padding(
@@ -565,13 +572,14 @@ class _ShopApprovalCard extends StatelessWidget {
                         style: TextStyle(color: AlphaTheme.accentBlue),
                       ),
                       SizedBox(width: 8),
-                      Icon(Icons.open_in_new, color: AlphaTheme.accentBlue, size: 16),
+                      Icon(Icons.open_in_new,
+                          color: AlphaTheme.accentBlue, size: 16),
                     ],
                   ),
                 ),
               ),
             ),
-          
+
           // Action Buttons
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -609,7 +617,7 @@ class _ShopApprovalCard extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildDetailChip(IconData icon, String label, {bool isError = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -632,7 +640,8 @@ class _ShopApprovalCard extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: isError ? AlphaTheme.accentRed : AlphaTheme.textSecondary,
+                color:
+                    isError ? AlphaTheme.accentRed : AlphaTheme.textSecondary,
                 fontSize: 11,
               ),
               overflow: TextOverflow.ellipsis,
@@ -642,11 +651,11 @@ class _ShopApprovalCard extends StatelessWidget {
       ),
     );
   }
-  
+
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inMinutes < 60) {
       return '${difference.inMinutes}m';
     } else if (difference.inHours < 24) {
@@ -655,15 +664,20 @@ class _ShopApprovalCard extends StatelessWidget {
       return '${difference.inDays}d';
     }
   }
-  
+
   String _getStaticMapUrl(double lat, double lng) {
     // Using OpenStreetMap static tiles (free, no API key)
     // Zoom level 15, 400x200 pixels
-    return 'https://tile.openstreetmap.org/15/'
-        '${((lng + 180) / 360 * 32768).floor()}/'
-        '${((1 - (1 / 3.141592653589793 * (0.5 * (1 + (lat * 3.141592653589793 / 180).sin()) / (1 - (lat * 3.141592653589793 / 180).sin())).log())) / 2 * 32768).floor()}.png';
+    final latRad = lat * math.pi / 180;
+    final x = ((lng + 180) / 360 * 32768).floor();
+    final y =
+        ((1 - (math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi)) /
+                2 *
+                32768)
+            .floor();
+    return 'https://tile.openstreetmap.org/15/$x/$y.png';
   }
-  
+
   void _showNrcPreview(BuildContext context, String url) {
     showDialog(
       context: context,

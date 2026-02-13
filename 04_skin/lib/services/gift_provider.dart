@@ -17,7 +17,8 @@ class Gift {
   String? zraResultCode;
   final String receiverName;
   final String receiverPhone;
-  final String shopId;
+  String shopId;
+  String shopName;
   final String productId;
   final String productName;
   final int quantity;
@@ -28,7 +29,7 @@ class Gift {
   String? zraRef;
   DateTime createdAt;
   DateTime updatedAt;
-  
+
   Gift({
     required this.txId,
     required this.txRef,
@@ -37,6 +38,7 @@ class Gift {
     required this.receiverName,
     required this.receiverPhone,
     required this.shopId,
+    this.shopName = '',
     required this.productId,
     required this.productName,
     required this.quantity,
@@ -48,8 +50,9 @@ class Gift {
     required this.createdAt,
     required this.updatedAt,
   });
-  
-  UIState get uiState => ProtocolMapper.mapStatus(status, zraResultCode: zraResultCode);
+
+  UIState get uiState =>
+      ProtocolMapper.mapStatus(status, zraResultCode: zraResultCode);
   double get progress => ProtocolMapper.getProgress(status);
   bool get isActive => ProtocolMapper.isActive(status);
   bool get needsAttention => ProtocolMapper.needsAttention(status);
@@ -58,24 +61,24 @@ class Gift {
 /// Gift state provider with real-time updates
 class GiftProvider extends ChangeNotifier {
   final KithlyApiService _api = KithlyApiService();
-  
+
   final Map<String, Gift> _gifts = {};
   Gift? _activeGift;
   Timer? _pollTimer;
   bool _isLoading = false;
   String? _error;
-  
+
   // Getters
   List<Gift> get gifts => _gifts.values.toList();
   Gift? get activeGift => _activeGift;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  
+
   /// Initialize provider
   Future<void> init() async {
     await _api.init();
   }
-  
+
   /// Create a new gift (Status: 100)
   Future<Gift> createGift({
     required String receiverPhone,
@@ -88,7 +91,7 @@ class GiftProvider extends ChangeNotifier {
     String? message,
   }) async {
     _setLoading(true);
-    
+
     try {
       final response = await _api.createGift(
         receiverPhone: receiverPhone,
@@ -98,7 +101,7 @@ class GiftProvider extends ChangeNotifier {
         quantity: quantity,
         message: message,
       );
-      
+
       final gift = Gift(
         txId: response['tx_id'],
         txRef: response['tx_ref'],
@@ -114,14 +117,13 @@ class GiftProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      
+
       _gifts[gift.txId] = gift;
       _activeGift = gift;
       _startPolling(gift.txId);
-      
+
       notifyListeners();
       return gift;
-      
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -130,9 +132,10 @@ class GiftProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
+
   /// Update gift status locally (from payment/polling)
-  void updateStatus(String txId, int newStatus, {String? zraResultCode, String? proofUrl, String? zraRef}) {
+  void updateStatus(String txId, int newStatus,
+      {String? zraResultCode, String? proofUrl, String? zraRef}) {
     final gift = _gifts[txId];
     if (gift != null) {
       gift.status = newStatus;
@@ -143,7 +146,7 @@ class GiftProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   /// Start polling for status updates
   void _startPolling(String txId) {
     _pollTimer?.cancel();
@@ -152,33 +155,32 @@ class GiftProvider extends ChangeNotifier {
       (_) => _pollStatus(txId),
     );
   }
-  
+
   /// Poll gateway for status update
   Future<void> _pollStatus(String txId) async {
     try {
       final response = await _api.getGift(txId);
       final newStatus = response['status'] as int;
-      
+
       if (_gifts[txId]?.status != newStatus) {
         updateStatus(
-          txId, 
+          txId,
           newStatus,
           zraResultCode: response['zra_result_code'],
           proofUrl: response['proof_url'],
           zraRef: response['zra_ref'],
         );
       }
-      
+
       // Stop polling if complete or failed
       if (newStatus >= 700 || newStatus == 900) {
         _pollTimer?.cancel();
       }
-      
     } catch (e) {
       // Ignore polling errors
     }
   }
-  
+
   /// Set active gift for tracking
   void setActiveGift(String txId) {
     _activeGift = _gifts[txId];
@@ -187,12 +189,12 @@ class GiftProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
-  
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
-  
+
   @override
   void dispose() {
     _pollTimer?.cancel();
