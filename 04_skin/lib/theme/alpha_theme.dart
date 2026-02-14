@@ -61,6 +61,8 @@ class AlphaTheme {
   static bool useLowPowerMode = false;
 
   // Aliases for compatibility
+  static const Color emerald = KithLyColors.emerald;
+  static const Color alert = KithLyColors.alert;
   static const Color primaryOrange = orange;
   static TextStyle get heading => headlineLarge;
   static TextStyle get body => bodyMedium;
