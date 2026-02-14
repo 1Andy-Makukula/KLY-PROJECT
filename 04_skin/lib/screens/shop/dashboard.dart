@@ -4,6 +4,9 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/shop/score_card.dart';
 import '../../widgets/shop/product_glass_card.dart';
 import '../../widgets/shop/order_tile.dart';
+import '../../widgets/charts/revenue_glass_chart.dart';
+import '../../widgets/animations/pulse_icon.dart';
+import 'trash_bin_screen.dart';
 
 class ShopDashboard extends StatefulWidget {
   const ShopDashboard({super.key});
@@ -14,46 +17,50 @@ class ShopDashboard extends StatefulWidget {
 
 class _ShopDashboardState extends State<ShopDashboard> {
   int _selectedIndex = 0;
+  bool _hasNewOrders = true; // Mock state
 
   @override
   Widget build(BuildContext context) {
-    // Responsive Breakpoint
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
-
     return Scaffold(
       backgroundColor: KithLyColors.darkBackground,
-      body: Row(
-        children: [
-          if (isDesktop) _buildDesktopSidebar(),
-          Expanded(
-            child: Stack(
-              children: [
-                // Main Content with Fade Transition
-                Padding(
-                  padding: EdgeInsets.only(
-                    bottom: isDesktop ? 0 : 100,
-                  ), // Space for mobile dock
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: KeyedSubtree(
-                      key: ValueKey<int>(_selectedIndex),
-                      child: _buildCurrentView(isDesktop),
-                    ),
-                  ),
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isDesktop = constraints.maxWidth > 800;
 
-                // Mobile Floating Dock
-                if (!isDesktop)
-                  Positioned(
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
-                    child: _buildMobileDock(),
-                  ),
-              ],
-            ),
-          ),
-        ],
+          return Row(
+            children: [
+              if (isDesktop) _buildDesktopSidebar(),
+              Expanded(
+                child: Stack(
+                  children: [
+                    // Main Content with Fade Transition
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: isDesktop ? 0 : 100,
+                      ), // Space for mobile dock
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: KeyedSubtree(
+                          key: ValueKey<int>(_selectedIndex),
+                          child: _buildCurrentView(isDesktop),
+                        ),
+                      ),
+                    ),
+
+                    // Mobile Floating Dock
+                    if (!isDesktop)
+                      Positioned(
+                        bottom: 20,
+                        left: 20,
+                        right: 20,
+                        child: _buildMobileDock(),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -66,9 +73,13 @@ class _ShopDashboardState extends State<ShopDashboard> {
         return _buildProductsView(isDesktop);
       case 3:
         return _buildOrdersView(isDesktop);
+      case 4:
+        return const Center(
+          child: Text("Settings", style: TextStyle(color: Colors.white)),
+        );
       default:
         return const Center(
-          child: Text("Coming Soon", style: TextStyle(color: Colors.white)),
+          child: Text("Scan", style: TextStyle(color: Colors.white)),
         );
     }
   }
@@ -108,6 +119,10 @@ class _ShopDashboardState extends State<ShopDashboard> {
           ),
           const SizedBox(height: 16),
           _buildMetricsGrid(isDesktop),
+
+          const SizedBox(height: 32),
+          // Revenue Chart
+          const RevenueGlassChart(),
         ],
       ),
     );
@@ -185,6 +200,7 @@ class _ShopDashboardState extends State<ShopDashboard> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
+      childAspectRatio: 2.5,
       children: const [
         _MetricTile(
           icon: Icons.visibility,
@@ -228,14 +244,34 @@ class _ShopDashboardState extends State<ShopDashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("Products", style: AlphaTheme.headlineMedium),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add),
-                label: const Text("Add New"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: KithLyColors.orange,
-                  foregroundColor: Colors.white,
-                ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.white70,
+                    ),
+                    tooltip: "Ghost Zone",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TrashBinScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.add),
+                    label: const Text("Add New"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KithLyColors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -274,7 +310,19 @@ class _ShopDashboardState extends State<ShopDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Orders", style: AlphaTheme.headlineMedium),
+          Row(
+            children: [
+              Text("Orders", style: AlphaTheme.headlineMedium),
+              if (_hasNewOrders) ...[
+                const SizedBox(width: 8),
+                const PulseIcon(
+                  icon: Icons.notifications_active,
+                  color: KithLyColors.orange,
+                  animate: true,
+                ),
+              ],
+            ],
+          ),
           const SizedBox(height: 24),
 
           // Tabs
@@ -329,7 +377,7 @@ class _ShopDashboardState extends State<ShopDashboard> {
     );
   }
 
-  // Sidebar Build Methods (Keep existing)
+  // Sidebar Build Methods
   Widget _buildDesktopSidebar() {
     return Container(
       width: 250,
@@ -342,7 +390,12 @@ class _ShopDashboardState extends State<ShopDashboard> {
           const SizedBox(height: 50),
           _buildSidebarItem(Icons.analytics, "Analysis", 0),
           _buildSidebarItem(Icons.inventory_2, "Products", 1),
-          _buildSidebarItem(Icons.receipt_long, "Orders", 3),
+          _buildSidebarItem(
+            Icons.receipt_long,
+            "Orders",
+            3,
+            hasPulse: _hasNewOrders,
+          ),
           _buildSidebarItem(Icons.qr_code_scanner, "Scan", 2),
           _buildSidebarItem(Icons.settings, "Settings", 4),
         ],
@@ -350,7 +403,12 @@ class _ShopDashboardState extends State<ShopDashboard> {
     );
   }
 
-  Widget _buildSidebarItem(IconData icon, String label, int index) {
+  Widget _buildSidebarItem(
+    IconData icon,
+    String label,
+    int index, {
+    bool hasPulse = false,
+  }) {
     final bool isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => _onItemTapped(index),
@@ -360,10 +418,16 @@ class _ShopDashboardState extends State<ShopDashboard> {
         decoration: isSelected ? GlassStyles.active : null,
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: isSelected ? KithLyColors.orange : Colors.white70,
-            ),
+            if (hasPulse)
+              PulseIcon(
+                icon: icon,
+                color: isSelected ? KithLyColors.orange : Colors.white70,
+              )
+            else
+              Icon(
+                icon,
+                color: isSelected ? KithLyColors.orange : Colors.white70,
+              ),
             const SizedBox(width: 16),
             Text(
               label,
@@ -390,21 +454,27 @@ class _ShopDashboardState extends State<ShopDashboard> {
           _buildMobileIcon(Icons.analytics, 0),
           _buildMobileIcon(Icons.inventory_2, 1),
           _buildScanButton(),
-          _buildMobileIcon(Icons.receipt_long, 3),
+          _buildMobileIcon(Icons.receipt_long, 3, hasPulse: _hasNewOrders),
           _buildMobileIcon(Icons.settings, 4),
         ],
       ),
     );
   }
 
-  Widget _buildMobileIcon(IconData icon, int index) {
+  Widget _buildMobileIcon(IconData icon, int index, {bool hasPulse = false}) {
     final bool isSelected = _selectedIndex == index;
     return IconButton(
-      icon: Icon(
-        icon,
-        color: isSelected ? KithLyColors.orange : Colors.white70,
-        size: 28,
-      ),
+      icon: hasPulse
+          ? PulseIcon(
+              icon: icon,
+              color: isSelected ? KithLyColors.orange : Colors.white70,
+              animate: true,
+            )
+          : Icon(
+              icon,
+              color: isSelected ? KithLyColors.orange : Colors.white70,
+              size: 28,
+            ),
       onPressed: () => _onItemTapped(index),
     );
   }
