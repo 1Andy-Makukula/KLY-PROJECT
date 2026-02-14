@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../theme/alpha_theme.dart';
-import '../../widgets/glass_card.dart';
 
 class ActiveOrderCard extends StatefulWidget {
   final String shopName;
