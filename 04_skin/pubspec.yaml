@@ -40,6 +40,7 @@ dependencies:
   flutter_animate: ^4.5.2
   flutterwave_standard: ^1.1.0
   mobile_scanner: ^7.1.4
+  fl_chart: ^0.66.0
 
 dev_dependencies:
   flutter_test:
