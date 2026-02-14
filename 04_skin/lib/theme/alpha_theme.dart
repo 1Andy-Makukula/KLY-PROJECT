@@ -1,13 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AlphaTheme {
-  // Primary Colors
+class KithLyColors {
   static const Color orange = Color(0xFFF85A47);
   static const Color gold = Color(0xFFDAA520);
-  static const Color darkBackground = Color(
-    0xFF1A1A1A,
-  ); // Dark background for glass effect
+  static const Color emerald = Color(0xFF2ECC71);
+  static const Color alert = Color(0xFFE74C3C);
+  static const Color darkBackground = Color(0xFF1A1A1A);
+}
+
+class GlassStyles {
+  static BoxDecoration get basic => BoxDecoration(
+    color: Colors.white.withOpacity(0.1),
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: Colors.white.withOpacity(0.2)),
+    boxShadow: [
+      BoxShadow(
+        color: KithLyColors.orange.withOpacity(0.1),
+        blurRadius: 20,
+        spreadRadius: 0,
+      ),
+    ],
+  );
+
+  static BoxDecoration get active => BoxDecoration(
+    color: Colors.white.withOpacity(0.2),
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: KithLyColors.orange.withOpacity(0.3)),
+    boxShadow: [
+      BoxShadow(
+        color: KithLyColors.orange.withOpacity(0.2),
+        blurRadius: 20,
+        spreadRadius: 2,
+      ),
+    ],
+  );
+
+  static BoxDecoration get scoreCard => BoxDecoration(
+    gradient: const LinearGradient(
+      colors: [KithLyColors.orange, KithLyColors.gold],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    borderRadius: BorderRadius.circular(20),
+    boxShadow: [
+      BoxShadow(
+        color: KithLyColors.orange.withOpacity(0.4),
+        blurRadius: 20,
+        offset: const Offset(0, 10),
+      ),
+    ],
+  );
+}
+
+class AlphaTheme {
+  static const Color orange = KithLyColors.orange;
+  static const Color gold = KithLyColors.gold;
 
   // Aliases for compatibility
   static const Color primaryOrange = orange;
@@ -43,15 +91,15 @@ class AlphaTheme {
     color: Colors.white,
   );
 
-  // Theme Data
   static ThemeData get themeData => ThemeData(
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: darkBackground,
-    primaryColor: orange,
+    scaffoldBackgroundColor: KithLyColors.darkBackground,
+    primaryColor: KithLyColors.orange,
     colorScheme: const ColorScheme.dark(
-      primary: orange,
-      secondary: gold,
-      surface: Colors.transparent, // Important for glass
+      primary: KithLyColors.orange,
+      secondary: KithLyColors.gold,
+      surface: Colors.transparent,
+      error: KithLyColors.alert,
     ),
     textTheme: TextTheme(
       headlineLarge: headlineLarge,
