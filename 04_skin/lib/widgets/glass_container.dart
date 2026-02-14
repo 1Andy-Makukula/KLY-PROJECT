@@ -1,3 +1,4 @@
+import 'dart:ui'; // Required for ImageFilter
 import 'package:flutter/material.dart';
 import '../theme/alpha_theme.dart';
 
@@ -7,6 +8,7 @@ class GlassContainer extends StatelessWidget {
   final EdgeInsetsGeometry margin;
   final double width;
   final double? height;
+  final double borderRadius;
 
   const GlassContainer({
     super.key,
@@ -15,17 +17,40 @@ class GlassContainer extends StatelessWidget {
     this.margin = const EdgeInsets.zero,
     this.width = double.infinity,
     this.height,
+    this.borderRadius = 20,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (AlphaTheme.useLowPowerMode) {
+      return Container(
+        width: width,
+        height: height,
+        margin: margin,
+        padding: padding,
+        decoration: GlassStyles.basic.copyWith(
+          color: Colors.black.withOpacity(0.8), // Fallback opaque color for performance
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+        child: child,
+      );
+    }
+
     return Container(
-      width: width,
-      height: height,
-      margin: margin,
-      padding: padding,
-      decoration: GlassStyles.basic,
-      child: child,
+       margin: margin,
+       child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            width: width,
+            height: height,
+            padding: padding,
+            decoration: GlassStyles.basic,
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }

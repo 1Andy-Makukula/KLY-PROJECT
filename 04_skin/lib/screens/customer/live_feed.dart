@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../theme/alpha_theme.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/shop/shop_card_glass.dart';
@@ -69,7 +70,7 @@ class _LiveFeedState extends State<LiveFeed> {
                 color: Colors.white.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.filter_list, color: Colors.white),
+              child: const Icon(LucideIcons.filter, color: Colors.white),
             ),
           ],
         ),
@@ -197,7 +198,7 @@ class _StickySearchDelegate extends SliverPersistentHeaderDelegate {
         height: 50,
         child: Row(
           children: [
-            const Icon(Icons.search, color: Colors.white54),
+            const Icon(LucideIcons.search, color: Colors.white54),
             const SizedBox(width: 12),
             Expanded(
               child: TextField(

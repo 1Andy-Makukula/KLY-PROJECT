@@ -57,6 +57,9 @@ class AlphaTheme {
   static const Color orange = KithLyColors.orange;
   static const Color gold = KithLyColors.gold;
 
+  // Performance Settings
+  static bool useLowPowerMode = false;
+
   // Aliases for compatibility
   static const Color primaryOrange = orange;
   static TextStyle get heading => headlineLarge;
