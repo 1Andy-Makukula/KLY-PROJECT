@@ -1,226 +1,194 @@
 import 'package:flutter/material.dart';
 import '../../theme/alpha_theme.dart';
+import '../../widgets/glass_container.dart';
+import '../../widgets/alpha_buttons.dart';
 
-class ActiveOrderCard extends StatefulWidget {
+// Placeholder for AlphaFlashButton if it doesn't exist yet, adapting from prompt context
+class AlphaGlassButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+  const AlphaGlassButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+      ),
+      child: Text(text),
+    );
+  }
+}
+
+class ActiveOrderCard extends StatelessWidget {
   final String shopName;
-  final String items;
-  final String price;
-  final String pickupCode;
+  final String orderId;
+  final String pickupCode; // The "Hero" Data
+  final String itemCount;
+  final String totalPrice;
+  final String status; // e.g., "Ready for Pickup"
   final VoidCallback onViewReceipt;
 
   const ActiveOrderCard({
     super.key,
-    required this.shopName,
-    required this.items,
-    required this.price,
+    this.shopName =
+        "Shop Name", // Defaults for backward compatibility if needed
+    this.orderId = "0000",
     required this.pickupCode,
+    this.itemCount = "1",
+    this.totalPrice = "K 0.00",
+    this.status = "Ready for Pickup",
     required this.onViewReceipt,
+    // Add parameters from old signature if any, to avoid breaking changes if called elsewhere
+    String? items,
+    String? price,
   });
 
   @override
-  State<ActiveOrderCard> createState() => _ActiveOrderCardState();
-}
-
-class _ActiveOrderCardState extends State<ActiveOrderCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            KithLyColors.orange.withOpacity(0.1),
-            Colors.white.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Stack(
+    return GlassContainer(
+      padding: const EdgeInsets.all(0), // Custom padding for inner layout
+      child: Column(
         children: [
-          // Gradient Border Left
-          Positioned(
-            left: 0,
-            top: 20,
-            bottom: 20,
-            width: 4,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [KithLyColors.orange, KithLyColors.gold],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+          // 1. Top Section: Shop & Status
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shopName,
+                      style: AlphaTheme.heading.copyWith(fontSize: 18),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Order #$orderId",
+                      style: AlphaTheme.body.copyWith(fontSize: 12),
+                    ),
+                  ],
                 ),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(4),
-                  bottomRight: Radius.circular(4),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: KithLyColors.orange.withOpacity(0.5),
-                    blurRadius: 10,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
+                _buildStatusPill(status),
+              ],
             ),
           ),
 
-          Padding(
-            padding: const EdgeInsets.all(24.0),
+          // 2. The "Digital Ticket" Zone (Darker Glass)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3), // Darker contrast zone
+              border: Border(
+                top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: Shop Name & Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.shopName,
-                          style: AlphaTheme.headlineMedium.copyWith(
-                            fontSize: 20,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(widget.items, style: AlphaTheme.bodyMedium),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: KithLyColors.emerald.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: KithLyColors.emerald.withOpacity(0.3),
-                        ),
-                      ),
-                      child: const Text(
-                        "READY",
-                        style: TextStyle(
-                          color: KithLyColors.emerald,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // Hero: Pickup Code (Ticket Style)
-                Center(
-                  child: ScaleTransition(
-                    scale: _pulseAnimation,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: KithLyColors.orange.withOpacity(0.3),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: KithLyColors.orange.withOpacity(0.2),
-                            blurRadius: 20,
-                            spreadRadius: -5,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            "PICKUP CODE",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 10,
-                              letterSpacing: 2,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.pickupCode,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 4.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                const Text(
+                  "SECURE PICKUP CODE",
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 8),
+                // The Code itself
+                Text(
+                  pickupCode,
+                  style: const TextStyle(
+                    color: AlphaTheme.primaryOrange, // High visibility
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 4, // W i d e   t e x t
+                    fontFamily: 'Courier', // Monospace for code look
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-                const SizedBox(height: 32),
-
-                // Footer: Price & Action
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // 3. Bottom Section: Totals & Action
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text("$itemCount Items", style: AlphaTheme.body),
                     Text(
-                      widget.price,
-                      style: AlphaTheme.headlineMedium.copyWith(
-                        color: KithLyColors.gold,
+                      totalPrice,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
-                    ),
-                    OutlinedButton(
-                      onPressed: widget.onViewReceipt,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: BorderSide(color: Colors.white.withOpacity(0.3)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
-                      child: const Text("View Receipt"),
                     ),
                   ],
                 ),
+                SizedBox(
+                  width: 120,
+                  height: 40,
+                  child: AlphaGlassButton(
+                    text: "Receipt",
+                    onPressed: onViewReceipt,
+                  ),
+                ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AlphaTheme.primaryOrange.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AlphaTheme.primaryOrange.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: AlphaTheme.primaryOrange.withOpacity(0.2),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: AlphaTheme.primaryOrange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            status.toUpperCase(),
+            style: const TextStyle(
+              color: AlphaTheme.primaryOrange,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
             ),
           ),
         ],

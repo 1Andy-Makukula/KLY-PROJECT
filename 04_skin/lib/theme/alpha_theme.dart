@@ -60,6 +60,7 @@ class AlphaTheme {
   // Aliases for compatibility
   static const Color primaryOrange = orange;
   static TextStyle get heading => headlineLarge;
+  static TextStyle get body => bodyMedium;
 
   // Glassmorphism Constants
   static const double glassBlur = 10.0;
