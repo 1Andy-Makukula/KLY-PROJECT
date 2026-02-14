@@ -85,46 +85,42 @@ class _ShopDashboardState extends State<ShopDashboard> {
   }
 
   Widget _buildAnalysisView(bool isDesktop) {
-    return SingleChildScrollView(
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Dashboard", style: AlphaTheme.headlineMedium),
-          const SizedBox(height: 24),
+      children: [
+        Text("Overview", style: AlphaTheme.headlineMedium),
+        const SizedBox(height: 20),
 
-          // Cockpit Layout
-          if (isDesktop)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: _buildScoreSection()),
-                const SizedBox(width: 24),
-                Expanded(flex: 1, child: _buildWalletSection()),
-              ],
-            )
-          else
-            Column(
-              children: [
-                _buildScoreSection(),
-                const SizedBox(height: 24),
-                _buildWalletSection(),
-              ],
-            ),
-
-          const SizedBox(height: 32),
-          Text(
-            "Live Metrics",
-            style: AlphaTheme.headlineMedium.copyWith(fontSize: 20),
+        // Cockpit Layout
+        if (isDesktop)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 2, child: _buildScoreSection()),
+              const SizedBox(width: 24),
+              Expanded(flex: 1, child: _buildWalletSection()),
+            ],
+          )
+        else
+          Column(
+            children: [
+              _buildScoreSection(),
+              const SizedBox(height: 24),
+              _buildWalletSection(),
+            ],
           ),
-          const SizedBox(height: 16),
-          _buildMetricsGrid(isDesktop),
 
-          const SizedBox(height: 32),
-          // Revenue Chart
-          const RevenueGlassChart(),
-        ],
-      ),
+        const SizedBox(height: 32),
+        const RevenueGlassChart(), // <--- The new component!
+
+        const SizedBox(height: 32),
+        Text(
+          "Live Metrics",
+          style: AlphaTheme.headlineMedium.copyWith(fontSize: 20),
+        ),
+        const SizedBox(height: 16),
+        _buildMetricsGrid(isDesktop),
+      ],
     );
   }
 
