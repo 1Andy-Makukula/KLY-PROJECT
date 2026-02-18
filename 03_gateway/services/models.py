@@ -32,16 +32,36 @@ class Transaction(Base):
 
     # Primary key
     tx_id = Column(PG_UUID(as_uuid=True), primary_key=True)
+    tx_ref = Column(String(50), unique=True, nullable=False)
 
     # Idempotency
     idempotency_key = Column(Text, unique=True, nullable=False)
 
+    # Parties
+    sender_id = Column(String(100), nullable=False)
+    receiver_phone = Column(String(30), nullable=False)
+    receiver_name = Column(String(150), nullable=False)
+
     # Product & amount
-    sku_id = Column(String(100), nullable=False)
+    shop_id = Column(String(100), nullable=False)
+    product_id = Column(String(100), nullable=False)
+    sku_id = Column(String(100), nullable=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price = Column(Numeric(12, 2), nullable=False)
+    total_amount = Column(Numeric(12, 2), nullable=False)
     amount_zmw = Column(Numeric(12, 2), nullable=False)
 
+    # Gift metadata
+    message = Column(Text, nullable=True)
+    is_surprise = Column(Boolean, default=False)
+
     # Status
-    status_code = Column(Integer, nullable=False, default=100)
+    status = Column(Integer, nullable=False, default=100)
+    status_code = Column(Integer, nullable=False, default=100)  # Legacy alias
+
+    # Fulfillment
+    rider_id = Column(String(100), nullable=True)
+    estimated_delivery = Column(DateTime(timezone=True), nullable=True)
 
     # Currency Oracle (Phase V)
     final_collected_gbp = Column(Numeric(12, 2), nullable=True)
