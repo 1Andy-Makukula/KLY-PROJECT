@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Alpha Theme - Project Alpha Design System
 class AlphaTheme {
@@ -139,7 +140,7 @@ class AlphaTheme {
 
   /// Glass border for cards
   static Border get glassBorder => Border.all(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withOpacity(0.15),
         width: 1,
       );
 
@@ -323,16 +324,17 @@ class AlphaTheme {
             fontWeight: FontWeight.w600,
           ),
         ),
-        // cardTheme: CardTheme(
-        //   color: backgroundCard,
-        //   shape: RoundedRectangleBorder(borderRadius: cardRadius),
-        //   elevation: 0,
-        // ),
+        cardTheme: CardThemeData(
+          color: backgroundCard,
+          shape: RoundedRectangleBorder(borderRadius: cardRadius),
+          elevation: 0,
+        ),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         elevatedButtonTheme: ElevatedButtonThemeData(style: primaryButton),
         outlinedButtonTheme: OutlinedButtonThemeData(style: ghostButton),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: backgroundGlass,
+          fillColor: Colors.black.withOpacity(0.4),
           border: OutlineInputBorder(
             borderRadius: buttonRadius,
             borderSide: BorderSide.none,
@@ -385,7 +387,7 @@ class AlphaGlassContainer extends StatelessWidget {
         child: Container(
           padding: padding ?? const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
+            color: Colors.black.withOpacity(0.4),
             borderRadius: borderRadius ?? AlphaTheme.cardRadius,
             border: Border.all(
               color: borderColor ?? Colors.white.withOpacity(0.15),

@@ -18,6 +18,13 @@ from services.gemini_vision import get_vision_service, AuditResult
 
 router = APIRouter(prefix="/gifts", tags=["Gifts"])
 
+# ---------------------------------------------------------------------------
+# IDEMPOTENCY STORE (in-memory; swap for DB/Redis in production)
+# ---------------------------------------------------------------------------
+# Maps idempotency_key → GiftResponse so duplicate requests return the
+# original result instead of creating a second transaction.
+_idempotency_store: dict[str, dict] = {}
+
 
 # === Status Codes (The Protocol) ===
 
@@ -121,19 +128,28 @@ class StatusHistoryEntry(BaseModel):
 
 # === Endpoints ===
 
-@router.post("/", response_model=GiftResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=GiftResponse)
 async def create_gift(
     gift: GiftCreate,
     current_user: TokenData = Depends(get_current_user)
 ):
     """
-    Create a new gift transaction.
-    Status: 100 (INITIATED)
+    Create a new gift transaction (idempotent).
+
+    If a transaction with the same idempotency_key already exists,
+    the original response is returned (200 OK) instead of creating
+    a duplicate. Otherwise a new gift is created (201 CREATED).
     """
+    # ── Idempotency check ────────────────────────────────────────────
+    existing = _idempotency_store.get(gift.idempotency_key)
+    if existing is not None:
+        return existing  # 200 — return the original, no new charge
+
+    # ── Create new gift ──────────────────────────────────────────────
     tx_id = str(uuid.uuid4())
     tx_ref = f"KLY-2026-{tx_id[:8].upper()}"
-    
-    return GiftResponse(
+
+    response = GiftResponse(
         tx_id=tx_id,
         tx_ref=tx_ref,
         status=GiftStatus.INITIATED,
@@ -154,6 +170,11 @@ async def create_gift(
         updated_at=datetime.utcnow(),
         estimated_delivery=None
     )
+
+    # ── Store for idempotency ────────────────────────────────────────
+    _idempotency_store[gift.idempotency_key] = response
+
+    return response
 
 
 @router.post("/{tx_id}/upload-proof", response_model=ProofUploadResponse)

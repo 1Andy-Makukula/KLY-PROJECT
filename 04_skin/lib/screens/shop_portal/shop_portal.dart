@@ -155,145 +155,201 @@ class _ShopPortalState extends State<ShopPortal> with TickerProviderStateMixin {
       decimalDigits: 0,
     );
 
-    return Scaffold(
-      backgroundColor: AlphaTheme.backgroundDark,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Consumer<DashboardProvider>(
-          builder: (context, dashboard, _) {
-            return Column(
-              children: [
-                Text(
-                  widget.shopName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
+        child: Scaffold(
+          backgroundColor: AlphaTheme.backgroundDark,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Consumer<DashboardProvider>(
+              builder: (context, dashboard, _) {
+                return Column(
                   children: [
-                    const Text(
-                      'Command Center',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AlphaTheme.textMuted,
+                    Text(
+                      widget.shopName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Live Revenue Today chip — with pulse animation
-                    Builder(
-                      builder: (context) {
-                        // Detect revenue change and trigger pulse
-                        if (dashboard.liveRevenueToday != _previousRevenue &&
-                            _previousRevenue > 0) {
-                          _revenuePulseController.forward().then(
-                                (_) => _revenuePulseController.reverse(),
-                              );
-                        }
-                        _previousRevenue = dashboard.liveRevenueToday;
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Command Center',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AlphaTheme.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Live Revenue Today chip — with pulse animation
+                        Builder(
+                          builder: (context) {
+                            // Detect revenue change and trigger pulse
+                            if (dashboard.liveRevenueToday !=
+                                    _previousRevenue &&
+                                _previousRevenue > 0) {
+                              _revenuePulseController.forward().then(
+                                    (_) => _revenuePulseController.reverse(),
+                                  );
+                            }
+                            _previousRevenue = dashboard.liveRevenueToday;
 
-                        return ScaleTransition(
-                          scale: _revenuePulseAnimation,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AlphaTheme.accentGreen.withOpacity(0.15),
-                              borderRadius: AlphaTheme.chipRadius,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    color: AlphaTheme.accentGreen,
-                                    shape: BoxShape.circle,
-                                  ),
+                            return ScaleTransition(
+                              scale: _revenuePulseAnimation,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  currencyFormat.format(
-                                    dashboard.liveRevenueToday,
-                                  ),
-                                  style: const TextStyle(
-                                    color: AlphaTheme.accentGreen,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                                decoration: BoxDecoration(
+                                  color:
+                                      AlphaTheme.accentGreen.withOpacity(0.15),
+                                  borderRadius: AlphaTheme.chipRadius,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: AlphaTheme.accentGreen,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      currencyFormat.format(
+                                        dashboard.liveRevenueToday,
+                                      ),
+                                      style: const TextStyle(
+                                        color: AlphaTheme.accentGreen,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  // TODO: Navigate to settings
+                },
+              ),
+            ],
+          ),
+          body: Consumer<DashboardProvider>(
+            builder: (context, dashboard, child) {
+              return RefreshIndicator(
+                onRefresh: () => dashboard.loadDashboard(widget.shopId),
+                color: AlphaTheme.accentGreen,
+                backgroundColor: AlphaTheme.backgroundCard,
+                child: CustomScrollView(
+                  slivers: [
+                    // Revenue HUD
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: RevenueCard(
+                          todayRevenue: dashboard.todayRevenue,
+                          weeklyData: dashboard.weeklyRevenue,
+                          isLoading: dashboard.isLoading,
+                        ),
+                      ),
+                    ),
+
+                    // === Low-Stock Warning Banner ===
+                    if (dashboard.hasUrgentOrders)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: AlphaTheme.urgentBannerDecoration,
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: AlphaTheme.accentAmber,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '⚠️ Low stock detected. Orders for items below 50% '
+                                    'require 2-minute verification to prevent re-routing.',
+                                    style: TextStyle(
+                                      color: AlphaTheme.accentAmber,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.4,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              // TODO: Navigate to settings
-            },
-          ),
-        ],
-      ),
-      body: Consumer<DashboardProvider>(
-        builder: (context, dashboard, child) {
-          return RefreshIndicator(
-            onRefresh: () => dashboard.loadDashboard(widget.shopId),
-            color: AlphaTheme.accentGreen,
-            backgroundColor: AlphaTheme.backgroundCard,
-            child: CustomScrollView(
-              slivers: [
-                // Revenue HUD
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: RevenueCard(
-                      todayRevenue: dashboard.todayRevenue,
-                      weeklyData: dashboard.weeklyRevenue,
-                      isLoading: dashboard.isLoading,
-                    ),
-                  ),
-                ),
+                        ),
+                      ),
 
-                // === Low-Stock Warning Banner ===
-                if (dashboard.hasUrgentOrders)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: AlphaTheme.urgentBannerDecoration,
-                        child: const Row(
+                    // Section Title: Ready for Collection
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        child: Row(
                           children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: AlphaTheme.accentAmber,
-                              size: 20,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AlphaTheme.accentAmber.withOpacity(0.2),
+                                borderRadius: AlphaTheme.chipRadius,
+                              ),
+                              child: const Icon(
+                                Icons.inventory_2_outlined,
+                                color: AlphaTheme.accentAmber,
+                                size: 20,
+                              ),
                             ),
-                            SizedBox(width: 10),
-                            Expanded(
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Ready for Collection',
+                              style: TextStyle(
+                                color: AlphaTheme.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AlphaTheme.accentAmber.withOpacity(0.2),
+                                borderRadius: AlphaTheme.chipRadius,
+                              ),
                               child: Text(
-                                '⚠️ Low stock detected. Orders for items below 50% '
-                                'require 2-minute verification to prevent re-routing.',
-                                style: TextStyle(
+                                '${dashboard.pendingOrders.length}',
+                                style: const TextStyle(
                                   color: AlphaTheme.accentAmber,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.4,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
@@ -301,169 +357,122 @@ class _ShopPortalState extends State<ShopPortal> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
-                  ),
 
-                // Section Title: Ready for Collection
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: Row(
+                    // Live Order Feed
+                    LiveOrderFeed(
+                      orders: dashboard.pendingOrders,
+                      isLoading: dashboard.isLoading,
+                      onMarkOutOfStock: (txId) async {
+                        await dashboard.cancelOrder(txId, 'out_of_stock');
+                      },
+                    ),
+
+                    // The "Sleeper" Delivery Bridge - Hidden by Feature Flag
+                    if (FeatureFlags.enableManualDelivery &&
+                        dashboard.pendingOrders.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Section header
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AlphaTheme.accentBlue
+                                          .withOpacity(0.2),
+                                      borderRadius: AlphaTheme.chipRadius,
+                                    ),
+                                    child: const Icon(
+                                      Icons.local_shipping,
+                                      color: AlphaTheme.accentBlue,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Dispatch Deliveries',
+                                    style: TextStyle(
+                                      color: AlphaTheme.textPrimary,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // Delivery cards for each pending order
+                              ...dashboard.pendingOrders.map(
+                                (order) => DeliveryDispatchCard(
+                                  txId: order.txId,
+                                  recipientName: order.recipientName,
+                                  productName: order.productName,
+                                  onDispatched: () {
+                                    dashboard.loadDashboard(widget.shopId);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Bottom padding for FAB
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 100),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // THE TRIGGER - Prominent Scan Button
+          floatingActionButton: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _pulseAnimation.value,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: AlphaTheme.scanButtonDecoration,
+                  child: FloatingActionButton(
+                    onPressed: _openScanner,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    highlightElevation: 0,
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AlphaTheme.accentAmber.withOpacity(0.2),
-                            borderRadius: AlphaTheme.chipRadius,
-                          ),
-                          child: const Icon(
-                            Icons.inventory_2_outlined,
-                            color: AlphaTheme.accentAmber,
-                            size: 20,
-                          ),
+                        Icon(
+                          Icons.qr_code_scanner,
+                          size: 32,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Ready for Collection',
+                        SizedBox(height: 2),
+                        Text(
+                          'SCAN',
                           style: TextStyle(
-                            color: AlphaTheme.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AlphaTheme.accentAmber.withOpacity(0.2),
-                            borderRadius: AlphaTheme.chipRadius,
-                          ),
-                          child: Text(
-                            '${dashboard.pendingOrders.length}',
-                            style: const TextStyle(
-                              color: AlphaTheme.accentAmber,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-
-                // Live Order Feed
-                LiveOrderFeed(
-                  orders: dashboard.pendingOrders,
-                  isLoading: dashboard.isLoading,
-                  onMarkOutOfStock: (txId) async {
-                    await dashboard.cancelOrder(txId, 'out_of_stock');
-                  },
-                ),
-
-                // The "Sleeper" Delivery Bridge - Hidden by Feature Flag
-                if (FeatureFlags.enableManualDelivery &&
-                    dashboard.pendingOrders.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Section header
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AlphaTheme.accentBlue.withOpacity(0.2),
-                                  borderRadius: AlphaTheme.chipRadius,
-                                ),
-                                child: const Icon(
-                                  Icons.local_shipping,
-                                  color: AlphaTheme.accentBlue,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Dispatch Deliveries',
-                                style: TextStyle(
-                                  color: AlphaTheme.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Delivery cards for each pending order
-                          ...dashboard.pendingOrders.map(
-                            (order) => DeliveryDispatchCard(
-                              txId: order.txId,
-                              recipientName: order.recipientName,
-                              productName: order.productName,
-                              onDispatched: () {
-                                dashboard.loadDashboard(widget.shopId);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Bottom padding for FAB
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 100),
-                ),
-              ],
-            ),
-          );
-        },
+              );
+            },
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
+        ),
       ),
-
-      // THE TRIGGER - Prominent Scan Button
-      floatingActionButton: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _pulseAnimation.value,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: AlphaTheme.scanButtonDecoration,
-              child: FloatingActionButton(
-                onPressed: _openScanner,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                highlightElevation: 0,
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.qr_code_scanner,
-                      size: 32,
-                      color: Colors.white,
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'SCAN',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

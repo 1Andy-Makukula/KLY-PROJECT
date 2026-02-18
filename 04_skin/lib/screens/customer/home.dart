@@ -2,7 +2,7 @@
 /// KithLy Global Protocol - CUSTOMER HOME (Phase V)
 /// home.dart - Customer Dashboard with Re-route Dialog
 /// =============================================================================
-/// 
+///
 /// Project Alpha port of CustomerDashboard.tsx with:
 /// - Active orders display
 /// - Re-route Dialog (Status 106 listener)
@@ -17,9 +17,9 @@ import '../../config/feature_flags.dart';
 /// Customer Home Dashboard
 class CustomerHome extends StatefulWidget {
   final String userId;
-  
+
   const CustomerHome({super.key, required this.userId});
-  
+
   @override
   State<CustomerHome> createState() => _CustomerHomeState();
 }
@@ -27,18 +27,18 @@ class CustomerHome extends StatefulWidget {
 class _CustomerHomeState extends State<CustomerHome> {
   List<Map<String, dynamic>> _activeOrders = [];
   bool _isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
     _loadActiveOrders();
     _startStatusPolling();
   }
-  
+
   void _loadActiveOrders() async {
     // TODO: Fetch from API
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     setState(() {
       _activeOrders = [
         {
@@ -53,7 +53,7 @@ class _CustomerHomeState extends State<CustomerHome> {
       _isLoading = false;
     });
   }
-  
+
   void _startStatusPolling() {
     // Poll for status changes every 10 seconds
     // In production, use WebSocket or Firebase Realtime
@@ -64,7 +64,7 @@ class _CustomerHomeState extends State<CustomerHome> {
       }
     });
   }
-  
+
   void _checkForReroute() {
     // Check if any order has status 106 (ALT_FOUND)
     for (var order in _activeOrders) {
@@ -74,7 +74,7 @@ class _CustomerHomeState extends State<CustomerHome> {
       }
     }
   }
-  
+
   void _showRerouteDialog(Map<String, dynamic> order) {
     showDialog(
       context: context,
@@ -92,7 +92,7 @@ class _CustomerHomeState extends State<CustomerHome> {
       ),
     );
   }
-  
+
   Future<void> _acceptReroute(String txId) async {
     HapticFeedback.heavyImpact();
     // TODO: Call API to accept reroute
@@ -104,7 +104,7 @@ class _CustomerHomeState extends State<CustomerHome> {
     );
     _loadActiveOrders();
   }
-  
+
   Future<void> _declineReroute(String txId) async {
     // TODO: Call API to decline and refund
     ScaffoldMessenger.of(context).showSnackBar(
@@ -115,155 +115,166 @@ class _CustomerHomeState extends State<CustomerHome> {
     );
     _loadActiveOrders();
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AlphaTheme.backgroundDark,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Column(
-          children: [
-            const Text(
-              'KithLy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AlphaTheme.primaryOrange,
-              ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
+        child: Scaffold(
+          backgroundColor: AlphaTheme.backgroundDark,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Column(
+              children: [
+                const Text(
+                  'KithLy',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AlphaTheme.primaryOrange,
+                  ),
+                ),
+                Text(
+                  'Send Gifts Anywhere',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AlphaTheme.textMuted,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              'Send Gifts Anywhere',
-              style: TextStyle(
-                fontSize: 12,
-                color: AlphaTheme.textMuted,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {},
               ),
-            ),
-          ],
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            ],
           ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async => _loadActiveOrders(),
-        color: AlphaTheme.primaryOrange,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                slivers: [
-                  // Quick Actions
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildQuickActions(),
-                    ),
-                  ),
-                  
-                  // Active Orders Section
-                  if (_activeOrders.isNotEmpty) ...[
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AlphaTheme.primaryOrange.withOpacity(0.2),
-                                borderRadius: AlphaTheme.chipRadius,
-                              ),
-                              child: const Icon(
-                                Icons.receipt_long,
-                                color: AlphaTheme.primaryOrange,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Active Orders',
-                              style: TextStyle(
-                                color: AlphaTheme.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+          body: RefreshIndicator(
+            onRefresh: () async => _loadActiveOrders(),
+            color: AlphaTheme.primaryOrange,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : CustomScrollView(
+                    slivers: [
+                      // Quick Actions
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: _buildQuickActions(),
                         ),
                       ),
-                    ),
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _OrderCard(order: _activeOrders[index]),
-                          childCount: _activeOrders.length,
+
+                      // Active Orders Section
+                      if (_activeOrders.isNotEmpty) ...[
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AlphaTheme.primaryOrange
+                                        .withOpacity(0.2),
+                                    borderRadius: AlphaTheme.chipRadius,
+                                  ),
+                                  child: const Icon(
+                                    Icons.receipt_long,
+                                    color: AlphaTheme.primaryOrange,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Active Orders',
+                                  style: TextStyle(
+                                    color: AlphaTheme.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) =>
+                                  _OrderCard(order: _activeOrders[index]),
+                              childCount: _activeOrders.length,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Discover Section
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      AlphaTheme.secondaryGold.withOpacity(0.2),
+                                  borderRadius: AlphaTheme.chipRadius,
+                                ),
+                                child: const Icon(
+                                  Icons.explore,
+                                  color: AlphaTheme.secondaryGold,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Discover Shops',
+                                style: TextStyle(
+                                  color: AlphaTheme.textPrimary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                  
-                  // Discover Section
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AlphaTheme.secondaryGold.withOpacity(0.2),
-                              borderRadius: AlphaTheme.chipRadius,
-                            ),
-                            child: const Icon(
-                              Icons.explore,
-                              color: AlphaTheme.secondaryGold,
-                              size: 20,
-                            ),
+
+                      // Shop categories placeholder
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              _CategoryChip(icon: Icons.cake, label: 'Cakes'),
+                              _CategoryChip(
+                                  icon: Icons.local_florist, label: 'Flowers'),
+                              _CategoryChip(
+                                  icon: Icons.card_giftcard, label: 'Gifts'),
+                              _CategoryChip(
+                                  icon: Icons.shopping_bag, label: 'Hampers'),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Discover Shops',
-                            style: TextStyle(
-                              color: AlphaTheme.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+
+                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                    ],
                   ),
-                  
-                  // Shop categories placeholder
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          _CategoryChip(icon: Icons.cake, label: 'Cakes'),
-                          _CategoryChip(icon: Icons.local_florist, label: 'Flowers'),
-                          _CategoryChip(icon: Icons.card_giftcard, label: 'Gifts'),
-                          _CategoryChip(icon: Icons.shopping_bag, label: 'Hampers'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                ],
-              ),
+          ),
+        ),
       ),
     );
   }
-  
+
   Widget _buildQuickActions() {
     return Row(
       children: [
@@ -303,21 +314,21 @@ class RerouteDialog extends StatelessWidget {
   final Map<String, dynamic> order;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
-  
+
   const RerouteDialog({
     super.key,
     required this.order,
     required this.onAccept,
     required this.onDecline,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final originalShop = order["original_shop_name"] ?? "Shop A";
     final alternativeShop = order["alternative_shop_name"] ?? "Shop B";
     final distanceDiff = order["distance_diff"] ?? "+1.2km";
     final priceDiff = order["price_diff"] ?? "K0";
-    
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: AlphaReRouteGlass(
@@ -329,7 +340,8 @@ class RerouteDialog extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AlphaTheme.accentGreen.withOpacity(0.2),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Row(
                 children: [
@@ -355,7 +367,7 @@ class RerouteDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Content
             Padding(
               padding: const EdgeInsets.all(20),
@@ -367,7 +379,7 @@ class RerouteDialog extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Visual comparison
                   Row(
                     children: [
@@ -377,25 +389,33 @@ class RerouteDialog extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AlphaTheme.accentRed.withOpacity(0.1),
                             borderRadius: AlphaTheme.buttonRadius,
-                            border: Border.all(color: AlphaTheme.accentRed.withOpacity(0.3)),
+                            border: Border.all(
+                                color: AlphaTheme.accentRed.withOpacity(0.3)),
                           ),
                           child: Column(
                             children: [
-                              const Icon(Icons.close, color: AlphaTheme.accentRed),
+                              const Icon(Icons.close,
+                                  color: AlphaTheme.accentRed),
                               const SizedBox(height: 8),
                               Text(
                                 originalShop,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600),
                                 textAlign: TextAlign.center,
                               ),
-                              const Text('Failed', style: TextStyle(color: AlphaTheme.accentRed, fontSize: 12)),
+                              const Text('Failed',
+                                  style: TextStyle(
+                                      color: AlphaTheme.accentRed,
+                                      fontSize: 12)),
                             ],
                           ),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Icon(Icons.arrow_forward, color: AlphaTheme.textMuted),
+                        child: Icon(Icons.arrow_forward,
+                            color: AlphaTheme.textMuted),
                       ),
                       Expanded(
                         child: Container(
@@ -403,30 +423,38 @@ class RerouteDialog extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AlphaTheme.accentGreen.withOpacity(0.1),
                             borderRadius: AlphaTheme.buttonRadius,
-                            border: Border.all(color: AlphaTheme.accentGreen.withOpacity(0.3)),
+                            border: Border.all(
+                                color: AlphaTheme.accentGreen.withOpacity(0.3)),
                           ),
                           child: Column(
                             children: [
-                              const Icon(Icons.check, color: AlphaTheme.accentGreen),
+                              const Icon(Icons.check,
+                                  color: AlphaTheme.accentGreen),
                               const SizedBox(height: 8),
                               Text(
                                 alternativeShop,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600),
                                 textAlign: TextAlign.center,
                               ),
-                              Text('($distanceDiff)', style: const TextStyle(color: AlphaTheme.accentGreen, fontSize: 12)),
+                              Text('($distanceDiff)',
+                                  style: const TextStyle(
+                                      color: AlphaTheme.accentGreen,
+                                      fontSize: 12)),
                             ],
                           ),
                         ),
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Price impact
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: AlphaTheme.backgroundGlass,
                       borderRadius: AlphaTheme.chipRadius,
@@ -434,7 +462,8 @@ class RerouteDialog extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Price impact: ', style: TextStyle(color: AlphaTheme.textMuted)),
+                        const Text('Price impact: ',
+                            style: TextStyle(color: AlphaTheme.textMuted)),
                         Text(
                           priceDiff,
                           style: const TextStyle(
@@ -449,7 +478,7 @@ class RerouteDialog extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Actions
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -491,14 +520,14 @@ class _QuickActionCard extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  
+
   const _QuickActionCard({
     required this.icon,
     required this.label,
     required this.color,
     required this.onTap,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -519,7 +548,8 @@ class _QuickActionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(color: AlphaTheme.textSecondary, fontSize: 12),
+              style: const TextStyle(
+                  color: AlphaTheme.textSecondary, fontSize: 12),
             ),
           ],
         ),
@@ -530,9 +560,9 @@ class _QuickActionCard extends StatelessWidget {
 
 class _OrderCard extends StatelessWidget {
   final Map<String, dynamic> order;
-  
+
   const _OrderCard({required this.order});
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -549,7 +579,8 @@ class _OrderCard extends StatelessWidget {
                 color: AlphaTheme.primaryOrange.withOpacity(0.2),
                 borderRadius: AlphaTheme.chipRadius,
               ),
-              child: const Icon(Icons.card_giftcard, color: AlphaTheme.primaryOrange),
+              child: const Icon(Icons.card_giftcard,
+                  color: AlphaTheme.primaryOrange),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -558,7 +589,8 @@ class _OrderCard extends StatelessWidget {
                 children: [
                   Text(
                     order["product_name"] ?? "Gift",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                   Text(
                     order["shop_name"] ?? "Shop",
@@ -572,17 +604,21 @@ class _OrderCard extends StatelessWidget {
               children: [
                 Text(
                   'K${order["amount_zmw"]}',
-                  style: const TextStyle(color: AlphaTheme.accentGreen, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: AlphaTheme.accentGreen,
+                      fontWeight: FontWeight.bold),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: AlphaTheme.accentBlue.withOpacity(0.2),
                     borderRadius: AlphaTheme.chipRadius,
                   ),
                   child: Text(
                     order["status_text"] ?? "Pending",
-                    style: const TextStyle(color: AlphaTheme.accentBlue, fontSize: 10),
+                    style: const TextStyle(
+                        color: AlphaTheme.accentBlue, fontSize: 10),
                   ),
                 ),
               ],
@@ -597,9 +633,9 @@ class _OrderCard extends StatelessWidget {
 class _CategoryChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  
+
   const _CategoryChip({required this.icon, required this.label});
-  
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(

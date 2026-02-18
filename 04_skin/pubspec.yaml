@@ -39,12 +39,12 @@ dependencies:
   
   # UI Components
   cupertino_icons: ^1.0.6
-  google_fonts: ^6.1.0
+  google_fonts: ^6.2.1
   flutter_svg: ^2.0.9
   cached_network_image: ^3.3.1
   
   # Notifications
-  firebase_messaging: ^14.7.10
+  firebase_messaging: ^16.1.1
   flutter_local_notifications: ^16.3.0
   
   # Sharing & Communication
@@ -65,6 +65,7 @@ dependencies:
   # Utilities
   intl: ^0.18.1
   uuid: ^4.3.1
+  firebase_core: ^4.4.0
 
 dev_dependencies:
   flutter_test:

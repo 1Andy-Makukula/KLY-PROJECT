@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:8000';
@@ -25,6 +26,8 @@ class ApiService {
     int quantity = 1,
     String? message,
   }) async {
+    final idempotencyKey = const Uuid().v4();
+
     final response = await http.post(
       Uri.parse('$baseUrl/gifts/'),
       headers: _headers,
@@ -35,6 +38,7 @@ class ApiService {
         'product_id': productId,
         'quantity': quantity,
         'message': message,
+        'idempotency_key': idempotencyKey,
       }),
     );
     return jsonDecode(response.body);
@@ -96,6 +100,22 @@ class ApiService {
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to cancel order: ${response.statusCode}');
+    }
+    return jsonDecode(response.body);
+  }
+
+  // ===========================================================================
+  // PRODUCT CATALOG ENDPOINTS (Phase IV-Extension)
+  // ===========================================================================
+
+  /// Get products for a specific shop
+  Future<List<dynamic>> getShopProducts(String shopId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/shop/$shopId/products'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load products: ${response.statusCode}');
     }
     return jsonDecode(response.body);
   }

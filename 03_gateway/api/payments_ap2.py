@@ -11,10 +11,18 @@ import os
 import hmac
 import hashlib
 import json
+import logging
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from services.database import get_db
+from services.models import Transaction
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -110,13 +118,17 @@ async def create_stripe_intent(request: PaymentIntentRequest):
 
 
 @router.post("/stripe/webhook")
-async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
+async def stripe_webhook(
+    request: Request,
+    stripe_signature: str = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Stripe webhook - THE TRUTH for payment confirmation.
     Only this moves status from 100 → 200.
     """
     payload = await request.body()
-    
+
     # Verify webhook signature
     if STRIPE_WEBHOOK_SECRET:
         try:
@@ -128,23 +140,42 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
             raise HTTPException(status_code=400, detail=f"Webhook verification failed: {e}")
     else:
         event = json.loads(payload)
-    
+
     event_type = event.get("type")
     data = event.get("data", {}).get("object", {})
-    
+
     if event_type == "payment_intent.succeeded":
         tx_id = data.get("metadata", {}).get("tx_id")
         if tx_id:
-            # Update status: 100 → 200 (LOCKED)
-            # TODO: Call C++ core via internal API
-            print(f"[STRIPE] Payment confirmed for tx_id={tx_id}, status → 200")
+            # Query the database for this transaction
+            result = await db.execute(
+                select(Transaction).where(Transaction.tx_id == tx_id)
+            )
+            txn = result.scalar_one_or_none()
+
+            if txn is None:
+                logger.warning("[STRIPE] tx_id=%s not found in database", tx_id)
+                raise HTTPException(status_code=404, detail=f"Transaction {tx_id} not found")
+
+            # Idempotency: if already confirmed, do nothing
+            if txn.status_code >= STATUS_LOCKED:
+                logger.info("[STRIPE] tx_id=%s already at status %s — skipping", tx_id, txn.status_code)
+                return {"status": "already_processed", "tx_id": tx_id, "current_status": txn.status_code}
+
+            # Update status: 100 → 200 (LOCKED / Confirmed)
+            txn.status_code = STATUS_LOCKED
+            txn.stripe_payment_ref = data.get("id")  # Stripe PaymentIntent ID
+            txn.updated_at = datetime.utcnow()
+            await db.commit()
+
+            logger.info("[STRIPE] Payment confirmed for tx_id=%s, status → %s", tx_id, STATUS_LOCKED)
             return {"status": "success", "tx_id": tx_id, "new_status": STATUS_LOCKED}
-    
+
     elif event_type == "payment_intent.payment_failed":
         tx_id = data.get("metadata", {}).get("tx_id")
-        print(f"[STRIPE] Payment failed for tx_id={tx_id}")
+        logger.warning("[STRIPE] Payment failed for tx_id=%s", tx_id)
         return {"status": "failed", "tx_id": tx_id}
-    
+
     return {"status": "received"}
 
 
@@ -184,35 +215,59 @@ async def create_flutterwave_disbursement(request: DisbursementRequest):
 
 
 @router.post("/flutterwave/webhook")
-async def flutterwave_webhook(request: Request, verif_hash: str = Header(None, alias="verif-hash")):
+async def flutterwave_webhook(
+    request: Request,
+    verif_hash: str = Header(None, alias="verif-hash"),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Flutterwave webhook - THE TRUTH for disbursement confirmation.
     Moves status from 200 → 250 (SETTLED) when shop account is verified.
     """
     payload = await request.json()
-    
+
     # Verify webhook hash
     if FLUTTERWAVE_WEBHOOK_HASH:
         if verif_hash != FLUTTERWAVE_WEBHOOK_HASH:
             raise HTTPException(status_code=401, detail="Invalid webhook hash")
-    
+
     event_type = payload.get("event")
     data = payload.get("data", {})
-    
+
     if event_type == "transfer.completed":
         tx_id = data.get("meta", {}).get("tx_id")
-        status = data.get("status")
-        
-        if status == "SUCCESSFUL" and tx_id:
+        fw_status = data.get("status")
+
+        if fw_status == "SUCCESSFUL" and tx_id:
+            # Query the database for this transaction
+            result = await db.execute(
+                select(Transaction).where(Transaction.tx_id == tx_id)
+            )
+            txn = result.scalar_one_or_none()
+
+            if txn is None:
+                logger.warning("[FLUTTERWAVE] tx_id=%s not found in database", tx_id)
+                return {"status": "not_found", "tx_id": tx_id}
+
+            # Idempotency: if already settled or beyond, skip
+            if txn.status_code >= STATUS_SETTLED:
+                logger.info("[FLUTTERWAVE] tx_id=%s already at status %s — skipping", tx_id, txn.status_code)
+                return {"status": "already_processed", "tx_id": tx_id, "current_status": txn.status_code}
+
             # Update status: 200 → 250 (SETTLED)
-            # Shop account is verified and ready to receive funds
-            print(f"[FLUTTERWAVE] Account verified for tx_id={tx_id}, status → 250")
+            txn.status_code = STATUS_SETTLED
+            txn.is_settled = True
+            txn.flutterwave_ref = data.get("reference")
+            txn.updated_at = datetime.utcnow()
+            await db.commit()
+
+            logger.info("[FLUTTERWAVE] Disbursement settled for tx_id=%s, status → %s", tx_id, STATUS_SETTLED)
             return {"status": "success", "tx_id": tx_id, "new_status": STATUS_SETTLED}
-        
-        elif status == "FAILED":
-            print(f"[FLUTTERWAVE] Disbursement failed for tx_id={tx_id}")
+
+        elif fw_status == "FAILED":
+            logger.warning("[FLUTTERWAVE] Disbursement failed for tx_id=%s", tx_id)
             return {"status": "failed", "tx_id": tx_id}
-    
+
     return {"status": "received"}
 
 
