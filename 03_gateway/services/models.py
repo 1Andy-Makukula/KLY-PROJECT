@@ -8,11 +8,20 @@ Maps to tables defined in:
   01_bedrock/schema/001_initial_ledger.sql   → Transaction (Global_Gifts)
 """
 
+from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Numeric, Boolean, DateTime, Text
+from sqlalchemy import Column, String, Integer, Numeric, Boolean, DateTime, Text, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from .database import Base
+
+
+class EscrowStatus(str, PyEnum):
+    INITIATED = "INITIATED"
+    ESCROW_LOCKED = "ESCROW_LOCKED"
+    IN_TRANSIT = "IN_TRANSIT"
+    PENDING_HANDSHAKE = "PENDING_HANDSHAKE"
+    FUNDS_RELEASED = "FUNDS_RELEASED"
 
 
 class Transaction(Base):
@@ -56,12 +65,13 @@ class Transaction(Base):
     is_surprise = Column(Boolean, default=False)
 
     # Status
-    status = Column(Integer, nullable=False, default=100)
+    status = Column(SQLEnum(EscrowStatus), nullable=False, default=EscrowStatus.INITIATED)
     status_code = Column(Integer, nullable=False, default=100)  # Legacy alias
 
     # Fulfillment
     rider_id = Column(String(100), nullable=True)
     estimated_delivery = Column(DateTime(timezone=True), nullable=True)
+    handshake_jwt = Column(String(500), nullable=True)
 
     # Currency Oracle (Phase V)
     final_collected_gbp = Column(Numeric(12, 2), nullable=True)
@@ -75,6 +85,7 @@ class Transaction(Base):
     collection_qr_url = Column(Text, nullable=True)
     expiry_timestamp = Column(DateTime(timezone=True), nullable=True)
     is_settled = Column(Boolean, default=False)
+    escrow_released_at = Column(DateTime(timezone=True), nullable=True)
     flutterwave_ref = Column(String(100), nullable=True)
 
     # Timestamps
@@ -82,4 +93,4 @@ class Transaction(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<Transaction tx_id={self.tx_id} status={self.status_code}>"
+        return f"<Transaction tx_id={self.tx_id} status={self.status}>"
