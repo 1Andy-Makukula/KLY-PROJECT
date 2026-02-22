@@ -62,3 +62,29 @@ async def get_db() -> AsyncSession:  # type: ignore[misc]
             yield session
         finally:
             await session.close()
+
+
+# ---------------------------------------------------------------------------
+# REDIS (Ingestion Queue / Shock Absorber)
+# ---------------------------------------------------------------------------
+# Used by the Ingestion Pipeline — endpoints push payloads into a Redis list
+# and return 202 Accepted instantly.  C++ worker nodes BRPOP from the other side.
+
+import redis.asyncio as aioredis
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+redis_pool = aioredis.from_url(REDIS_URL, decode_responses=True)
+
+
+async def get_redis() -> aioredis.Redis:  # type: ignore[misc]
+    """
+    Return the shared async Redis client for FastAPI `Depends()`.
+
+    Usage:
+        @router.post("/example")
+        async def example(r: aioredis.Redis = Depends(get_redis)):
+            await r.lpush("queue:name", payload)
+    """
+    return redis_pool
+

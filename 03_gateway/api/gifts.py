@@ -12,10 +12,12 @@ from typing import Optional, List
 from enum import IntEnum
 import uuid
 import hashlib
+import json
 
+import redis.asyncio as aioredis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.database import get_db
+from services.database import get_db, get_redis
 from services.models import Transaction
 
 from .auth import get_current_user, require_role, TokenData
@@ -131,60 +133,53 @@ class StatusHistoryEntry(BaseModel):
 
 # === Endpoints ===
 
-@router.post("/", response_model=GiftResponse)
+@router.post("/", response_model=GiftResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_gift(
     gift: GiftCreate,
     current_user: TokenData = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),  # Inject Database Session
+    r: aioredis.Redis = Depends(get_redis),  # Redis — NOT PostgreSQL
 ):
     """
-    Create a new gift transaction (idempotent & persistent).
+    PIPELINE 1: THE INGESTION QUEUE (The Shock Absorber)
 
-    If a transaction with the same idempotency_key already exists,
-    the original response is returned (200 OK) instead of creating
-    a duplicate. Otherwise a new gift is created (201 CREATED).
+    This endpoint NO LONGER talks to PostgreSQL directly.
+    It serializes the request, pushes it into a Redis list, and
+    returns 202 Accepted in sub-10 ms.  A C++ worker node on the
+    other side does BRPOP, performs the idempotency check, and
+    commits the row to PostgreSQL at a controlled pace.
     """
-    # ── 1. The "Iron" Idempotency Check (Check DB, not RAM) ──────────
-    result = await db.execute(
-        select(Transaction).where(
-            Transaction.idempotency_key == gift.idempotency_key
-        )
-    )
-    existing_tx = result.scalar_one_or_none()
-
-    if existing_tx:
-        # Return the existing data instantly — no duplicate charge.
-        return GiftResponse(
-            tx_id=str(existing_tx.tx_id),
-            tx_ref=existing_tx.tx_ref,
-            status=existing_tx.status,
-            status_name=STATUS_NAMES.get(existing_tx.status, "Unknown"),
-            sender_id=existing_tx.sender_id,
-            receiver_phone=existing_tx.receiver_phone,
-            receiver_name=existing_tx.receiver_name,
-            shop_id=existing_tx.shop_id,
-            product_id=existing_tx.product_id,
-            quantity=existing_tx.quantity,
-            unit_price=float(existing_tx.unit_price),
-            total_amount=float(existing_tx.total_amount),
-            message=existing_tx.message,
-            is_surprise=existing_tx.is_surprise,
-            rider_id=existing_tx.rider_id,
-            rider_name=None,
-            created_at=existing_tx.created_at,
-            updated_at=existing_tx.updated_at,
-            estimated_delivery=existing_tx.estimated_delivery,
-        )
-
-    # ── 2. Create New Transaction (The Write-Ahead Log) ──────────────
+    # ── 1. Pre-generate IDs so the Flutter app gets an immediate ref ─
     tx_id = str(uuid.uuid4())
     tx_ref = f"KLY-2026-{tx_id[:8].upper()}"
-    unit_price = 50.00  # TODO: Lookup real price from Product table
+    now = datetime.utcnow()
+    unit_price = 50.00  # Will be recalculated by the C++ worker
 
-    new_tx = Transaction(
+    # ── 2. Package the payload for the worker nodes ──────────────────
+    queue_payload = {
+        "tx_id": tx_id,
+        "tx_ref": tx_ref,
+        "idempotency_key": gift.idempotency_key,
+        "sender_id": current_user.user_id,
+        "receiver_phone": gift.receiver_phone,
+        "receiver_name": gift.receiver_name,
+        "shop_id": gift.shop_id,
+        "product_id": gift.product_id,
+        "quantity": gift.quantity,
+        "unit_price": unit_price,
+        "message": gift.message,
+        "is_surprise": gift.is_surprise,
+        "timestamp": now.isoformat(),
+    }
+
+    # ── 3. LPUSH into Redis (C++ workers BRPOP from the other side) ──
+    await r.lpush("kithly:ingestion:gifts", json.dumps(queue_payload))
+
+    # ── 4. Return instantly — the UI shows "Processing" spinner ──────
+    return GiftResponse(
         tx_id=tx_id,
         tx_ref=tx_ref,
-        idempotency_key=gift.idempotency_key,
+        status=GiftStatus.INITIATED,
+        status_name="Processing in Queue",
         sender_id=current_user.user_id,
         receiver_phone=gift.receiver_phone,
         receiver_name=gift.receiver_name,
@@ -193,38 +188,12 @@ async def create_gift(
         quantity=gift.quantity,
         unit_price=unit_price,
         total_amount=unit_price * gift.quantity,
-        amount_zmw=unit_price * gift.quantity,
         message=gift.message,
         is_surprise=gift.is_surprise,
-        status=GiftStatus.INITIATED,
-        status_code=GiftStatus.INITIATED,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-    )
-
-    db.add(new_tx)
-    await db.commit()
-    await db.refresh(new_tx)
-
-    return GiftResponse(
-        tx_id=str(new_tx.tx_id),
-        tx_ref=new_tx.tx_ref,
-        status=new_tx.status,
-        status_name=STATUS_NAMES[GiftStatus.INITIATED],
-        sender_id=new_tx.sender_id,
-        receiver_phone=new_tx.receiver_phone,
-        receiver_name=new_tx.receiver_name,
-        shop_id=new_tx.shop_id,
-        product_id=new_tx.product_id,
-        quantity=new_tx.quantity,
-        unit_price=float(new_tx.unit_price),
-        total_amount=float(new_tx.total_amount),
-        message=new_tx.message,
-        is_surprise=new_tx.is_surprise,
         rider_id=None,
         rider_name=None,
-        created_at=new_tx.created_at,
-        updated_at=new_tx.updated_at,
+        created_at=now,
+        updated_at=now,
         estimated_delivery=None,
     )
 
