@@ -1,0 +1,1 @@
+{"receiver_phone":"+260977654321","receiver_name":"Test Receiver","shop_id":"shop-001","product_id":"prod-001","quantity":2,"message":"Pipeline 1 end-to-end test!","is_surprise":true,"idempotency_key":"e2e-test-001"}

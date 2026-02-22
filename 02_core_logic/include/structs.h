@@ -9,6 +9,7 @@
 
 #include <string>
 #include <ctime>
+#include <nlohmann/json.hpp>
 
 namespace Kithly {
 
@@ -64,5 +65,19 @@ struct Evidence {
     std::string uploaded_by;  // UUID
     std::time_t created_at;
 };
+
+/**
+ * GiftPayload - JSON payload from Redis Ingestion Queue
+ */
+struct GiftPayload {
+    std::string tx_id;
+    std::string idempotency_key;
+    std::string receiver_phone;
+    std::string shop_id;
+    std::string product_id;
+    int quantity;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(GiftPayload, tx_id, idempotency_key, receiver_phone, shop_id, product_id, quantity)
 
 } // namespace Kithly

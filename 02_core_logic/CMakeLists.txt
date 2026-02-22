@@ -6,8 +6,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(kithly_core VERSION 1.0.0 LANGUAGES CXX)
 
-# Require C++23
-set(CMAKE_CXX_STANDARD 23)
+# Require C++17
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -19,6 +19,15 @@ endif()
 # Find required packages
 find_package(PostgreSQL REQUIRED)
 find_package(Threads REQUIRED)
+find_package(redis++ REQUIRED)
+
+# Fetch nlohmann/json
+include(FetchContent)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
 
 # Optional: gRPC for high-performance RPC
 # find_package(gRPC CONFIG)
@@ -43,6 +52,8 @@ add_executable(kithly_core ${CORE_SOURCES})
 target_link_libraries(kithly_core
     ${PostgreSQL_LIBRARIES}
     Threads::Threads
+    redis++::redis++
+    nlohmann_json::nlohmann_json
 )
 
 # Tests (using Google Test)
@@ -63,6 +74,8 @@ if(BUILD_TESTS)
             GTest::gtest_main
             ${PostgreSQL_LIBRARIES}
             Threads::Threads
+            redis++::redis++
+            nlohmann_json::nlohmann_json
         )
         
         include(GoogleTest)

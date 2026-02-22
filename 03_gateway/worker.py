@@ -39,7 +39,7 @@ from sqlalchemy import select
 
 # Re-use the SAME engine / session factory the gateway uses,
 # so we read the same DATABASE_URL env var and model definitions.
-from services.database import async_session, redis_pool
+from services.database import async_session, _get_redis_client
 from services.models import Transaction
 
 
@@ -80,7 +80,7 @@ async def process_queue() -> None:
             # BRPOP pops from the RIGHT (oldest item — FIFO with LPUSH).
             # timeout=0 means "wait forever".  This call is non-blocking
             # to the event loop thanks to redis.asyncio.
-            result = await redis_pool.brpop(QUEUE_KEY, timeout=0)
+            result = await _get_redis_client().brpop(QUEUE_KEY, timeout=0)
 
             if result is None:
                 # Shouldn't happen with timeout=0, but guard anyway.

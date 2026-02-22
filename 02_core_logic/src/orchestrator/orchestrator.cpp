@@ -14,14 +14,83 @@
  *   400 (COMPLETED) requires ZRA verification
  */
 
+#include "orchestrator.h"
 #include "constants.h"
 #include "structs.h"
 #include "db_connector.h"
 #include <chrono>
 #include <string>
 #include <iostream>
+#include <random>
+#include <nlohmann/json.hpp>
 
 namespace Kithly {
+namespace Orchestrator {
+
+std::string generate_handshake_token() {
+    // Exclude confusing characters: O, 0, I, 1
+    const std::string charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    
+    // Provide a cryptographically secure seed
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(0, charset.size() - 1);
+    
+    std::string token;
+    token.reserve(9); // 8 chars + 1 hyphen
+    
+    for (int i = 0; i < 4; ++i) {
+        token += charset[dist(gen)];
+    }
+    token += "-";
+    for (int i = 0; i < 4; ++i) {
+        token += charset[dist(gen)];
+    }
+    
+    return token;
+}
+
+void process_gift_job(const std::string& raw_json) {
+    try {
+        // 1. Parse JSON
+        auto parsed_json = nlohmann::json::parse(raw_json);
+        auto payload = parsed_json.get<Kithly::GiftPayload>();
+        
+        std::cout << "[ORCHESTRATOR] Parsed tx_id: " << payload.tx_id << std::endl;
+        
+        // 2. Instantiate/Use DBConnector
+        // (Assuming existing connection or placeholder)
+        
+        // 3. Idempotency Check
+        // TODO: Replace with actual Postgres SELECT query
+        bool is_duplicate = false; 
+        
+        // 4. Act
+        if (is_duplicate) {
+            std::cout << "Duplicate ignored. KithLy saved from double-charging." << std::endl;
+        } else {
+            std::string hs_token = generate_handshake_token();
+            
+            // TODO: Replace with actual Postgres INSERT query into Global_Gifts
+            // Parameters: 
+            //   status = 'ESCROW_LOCKED'
+            //   handshake_jwt = hs_token
+            //   ... other fields from payload
+            
+            std::cout << "✅ Bare-Metal Database committed." << std::endl;
+            std::cout << "🔒 Escrow Locked. Handshake Token: " << hs_token << std::endl;
+        }
+
+    } catch (const nlohmann::json::parse_error& e) {
+        std::cerr << "[ORCHESTRATOR FATAL] JSON parse error: " << e.what() << "\nPayload: " << raw_json << std::endl;
+    } catch (const nlohmann::json::type_error& e) {
+        std::cerr << "[ORCHESTRATOR FATAL] JSON type error: " << e.what() << "\nThis indicates a schema mismatch." << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "[ORCHESTRATOR FATAL] Unhandled exception: " << e.what() << std::endl;
+    }
+}
+
+} // namespace Orchestrator
 
 // Extended status codes for escalation
 constexpr int FORCE_CALL_PENDING = 305;

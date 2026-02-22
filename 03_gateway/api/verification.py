@@ -19,8 +19,13 @@ import io
 import base64
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from services.database import get_db
+from services.models import Transaction, EscrowStatus
 
 router = APIRouter(prefix="/verification", tags=["Verification"])
 
@@ -32,6 +37,11 @@ QR_CODE_SIZE = 200
 # =============================================================================
 # MODELS
 # =============================================================================
+
+class EscrowRedeemRequest(BaseModel):
+    tx_ref: str
+    handshake_code: str
+
 
 class TokenGenerationRequest(BaseModel):
     tx_id: str
@@ -225,6 +235,54 @@ async def verify_handshake(request: VerifyHandshakeRequest):
         disbursement_triggered=disbursement_triggered,
         message=message,
     )
+
+
+# =============================================================================
+# ESCROW REDEMPTION (Pipeline 3)
+# =============================================================================
+
+@router.post("/redeem")
+async def redeem_escrow_funds(
+    request: EscrowRedeemRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Shop unlocks funds from Escrow using the 8-character handshake_jwt.
+    Called when driver physically hands over the item.
+    """
+    # 1. Look up the transaction by tx_ref
+    stmt = select(Transaction).where(Transaction.tx_ref == request.tx_ref)
+    result = await db.execute(stmt)
+    tx = result.scalar_one_or_none()
+
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+
+    # 2. Check if already released
+    if tx.status == EscrowStatus.FUNDS_RELEASED:
+        raise HTTPException(
+            status_code=400, 
+            detail="Funds have already been released for this transaction."
+        )
+
+    # 3. Verify the Handshake
+    # Always normalize the input before checking (deal with poor UX/spacing)
+    normalized_input = request.handshake_code.strip().upper()
+    
+    if normalized_input != tx.handshake_jwt:
+        raise HTTPException(status_code=403, detail="Invalid Handshake Code.")
+
+    # 4. Release Escrow
+    tx.status = EscrowStatus.FUNDS_RELEASED
+    tx.escrow_released_at = datetime.utcnow()
+
+    # 5. Commit and Return
+    await db.commit()
+
+    return {
+        "status": "success", 
+        "message": "Handshake verified. Funds released to merchant."
+    }
 
 
 async def _trigger_zra_fiscalization(tx_id: str, shop_id: str) -> bool:
