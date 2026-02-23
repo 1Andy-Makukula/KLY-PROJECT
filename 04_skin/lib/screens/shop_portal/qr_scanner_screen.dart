@@ -19,11 +19,13 @@ import '../../state_machine/dashboard_provider.dart';
 /// QR Scanner Screen for Collection Handshake
 class QRScannerScreen extends StatefulWidget {
   final String shopId;
+  final String txId;
   final Function(String message)? onVerified;
 
   const QRScannerScreen({
     super.key,
     required this.shopId,
+    required this.txId,
     this.onVerified,
   });
 
@@ -48,8 +50,8 @@ class _QRScannerScreenState extends State<QRScannerScreen>
   bool _showSuccess = false;
   final TextEditingController _manualCodeController = TextEditingController();
 
-  // Token pattern: KT-XXXX-XX
-  final RegExp _tokenPattern = RegExp(r'^KT-[A-Z0-9]{4}-[A-Z0-9]{2}$');
+  // Token pattern: XXXX-XXXX (Escrow Protocol)
+  final RegExp _tokenPattern = RegExp(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$');
 
   @override
   void initState() {
@@ -105,6 +107,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
       // Extract tx_id from token or use token directly
       // For now, we'll send the token and let the backend resolve
       final result = await _api.verifyHandshake(
+        txId: widget.txId,
         token: token,
         shopId: widget.shopId,
       );
@@ -457,7 +460,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Format: KT-XXXX-XX',
+                      'Format: XXXX-XXXX',
                       style: TextStyle(
                         color: AlphaTheme.textMuted,
                         fontSize: 14,
@@ -470,7 +473,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                       textAlign: TextAlign.center,
                       style: AlphaTheme.codeText,
                       decoration: InputDecoration(
-                        hintText: 'KT-____-__',
+                        hintText: '____-____',
                         hintStyle: TextStyle(
                           color: AlphaTheme.textMuted.withOpacity(0.5),
                           fontSize: 24,
@@ -502,7 +505,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                             setState(() => _showManualEntry = false);
                             _verifyToken(code);
                           } else {
-                            _showError('Invalid format. Use: KT-XXXX-XX');
+                            _showError('Invalid format. Use: XXXX-XXXX');
                           }
                         },
                         style: AlphaTheme.successButton,

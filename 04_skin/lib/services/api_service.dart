@@ -126,18 +126,16 @@ class ApiService {
 
   /// Verify collection token (QR scan or manual entry)
   Future<Map<String, dynamic>> verifyHandshake({
+    required String txId,
     required String token,
     required String shopId,
-    String verifiedBy = 'shop_scan',
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/verification/verify-handshake'),
+      Uri.parse('$baseUrl/verification/redeem'), // Matches our FastAPI endpoint
       headers: _headers,
       body: jsonEncode({
-        'tx_id': '', // Backend will resolve from token
-        'collection_token': token,
-        'shop_id': shopId,
-        'verified_by': verifiedBy,
+        'tx_ref': txId, // Matches Pydantic schema
+        'handshake_code': token, // Matches Pydantic schema
       }),
     );
     if (response.statusCode != 200) {

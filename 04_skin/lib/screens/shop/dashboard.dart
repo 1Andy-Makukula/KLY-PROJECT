@@ -2,7 +2,7 @@
 /// KithLy Global Protocol - SHOP DASHBOARD (Phase V)
 /// dashboard.dart - Shop Command Center with Action Grid
 /// =============================================================================
-/// 
+///
 /// Project Alpha port of ShopPortal.tsx with:
 /// - Revenue chart (fl_chart)
 /// - Action Grid: Scan Order (Hero), Requests (Baker's Bell), Inventory
@@ -22,60 +22,62 @@ import '../shop_portal/delivery_dispatch_card.dart';
 class ShopDashboard extends StatefulWidget {
   final String shopId;
   final String shopName;
-  
+
   const ShopDashboard({
     super.key,
     required this.shopId,
     required this.shopName,
   });
-  
+
   @override
   State<ShopDashboard> createState() => _ShopDashboardState();
 }
 
-class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateMixin {
+class _ShopDashboardState extends State<ShopDashboard>
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   int _bakerRequestCount = 0; // Baker's Protocol pending count
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     // Pulsing animation for Hero Scan button
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     // Load dashboard data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().loadDashboard(widget.shopId);
       _loadBakerRequests();
     });
   }
-  
+
   @override
   void dispose() {
     _pulseController.dispose();
     super.dispose();
   }
-  
+
   void _loadBakerRequests() async {
     // TODO: Fetch Status 110 orders (Baker's Protocol)
     setState(() => _bakerRequestCount = 2); // Mock
   }
-  
-  void _openScanner() {
+
+  void _openScanner({String? txId}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => QRScannerScreen(
           shopId: widget.shopId,
+          txId: txId ?? '', // Pass selected txId or empty string
           onVerified: (result) {
             context.read<DashboardProvider>().loadDashboard(widget.shopId);
           },
@@ -83,21 +85,21 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
       ),
     );
   }
-  
+
   void _openBakerRequests() {
     // TODO: Navigate to Baker's Protocol requests screen
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Opening custom order requests...')),
     );
   }
-  
+
   void _openInventory() {
     // TODO: Navigate to inventory management
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Opening inventory...')),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,13 +145,13 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
                     ),
                   ),
                 ),
-                
+
                 // Action Grid
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _ActionGrid(
-                      onScanTap: _openScanner,
+                      onScanTap: () => _openScanner(), // General scan
                       onRequestsTap: _openBakerRequests,
                       onInventoryTap: _openInventory,
                       requestCount: _bakerRequestCount,
@@ -157,7 +159,7 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
                     ),
                   ),
                 ),
-                
+
                 // Pending Orders Section
                 SliverToBoxAdapter(
                   child: Padding(
@@ -187,7 +189,8 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: AlphaTheme.accentAmber.withOpacity(0.2),
                             borderRadius: AlphaTheme.chipRadius,
@@ -204,7 +207,7 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
                     ),
                   ),
                 ),
-                
+
                 // Order cards
                 if (dashboard.pendingOrders.isNotEmpty)
                   SliverPadding(
@@ -215,16 +218,18 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
                           final order = dashboard.pendingOrders[index];
                           return _OrderCard(
                             order: order,
-                            onTap: () {},
+                            onTap: () => _openScanner(
+                                txId: order.txId), // Pass txId to scanner
                           );
                         },
                         childCount: dashboard.pendingOrders.length,
                       ),
                     ),
                   ),
-                
+
                 // Yango Bridge (Feature Flag)
-                if (FeatureFlags.enableManualDelivery && dashboard.pendingOrders.isNotEmpty)
+                if (FeatureFlags.enableManualDelivery &&
+                    dashboard.pendingOrders.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -233,25 +238,31 @@ class _ShopDashboardState extends State<ShopDashboard> with TickerProviderStateM
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.local_shipping, color: AlphaTheme.accentBlue, size: 20),
+                              Icon(Icons.local_shipping,
+                                  color: AlphaTheme.accentBlue, size: 20),
                               SizedBox(width: 8),
                               Text(
                                 'Dispatch Delivery',
-                                style: TextStyle(color: AlphaTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                    color: AlphaTheme.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           DeliveryDispatchCard(
                             txId: dashboard.pendingOrders.first.txId,
-                            recipientName: dashboard.pendingOrders.first.recipientName,
-                            productName: dashboard.pendingOrders.first.productName,
+                            recipientName:
+                                dashboard.pendingOrders.first.recipientName,
+                            productName:
+                                dashboard.pendingOrders.first.productName,
                           ),
                         ],
                       ),
                     ),
                   ),
-                
+
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
@@ -267,13 +278,13 @@ class _RevenueChart extends StatelessWidget {
   final double todayRevenue;
   final List<double> weeklyData;
   final bool isLoading;
-  
+
   const _RevenueChart({
     required this.todayRevenue,
     required this.weeklyData,
     required this.isLoading,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -284,7 +295,8 @@ class _RevenueChart extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.trending_up, color: AlphaTheme.accentGreen, size: 24),
+              const Icon(Icons.trending_up,
+                  color: AlphaTheme.accentGreen, size: 24),
               const SizedBox(width: 8),
               const Text(
                 'Today\'s Revenue',
@@ -299,7 +311,10 @@ class _RevenueChart extends StatelessWidget {
                 ),
                 child: const Text(
                   'ZRA ✓',
-                  style: TextStyle(color: AlphaTheme.accentGreen, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: AlphaTheme.accentGreen,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -318,20 +333,22 @@ class _RevenueChart extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildLoadingChart() {
     return Center(
       child: CircularProgressIndicator(
         strokeWidth: 2,
-        valueColor: AlwaysStoppedAnimation<Color>(AlphaTheme.accentGreen.withOpacity(0.5)),
+        valueColor: AlwaysStoppedAnimation<Color>(
+            AlphaTheme.accentGreen.withOpacity(0.5)),
       ),
     );
   }
-  
+
   Widget _buildChart() {
-    final data = weeklyData.isEmpty ? [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] : weeklyData;
+    final data =
+        weeklyData.isEmpty ? [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] : weeklyData;
     final maxY = data.reduce((a, b) => a > b ? a : b) * 1.2;
-    
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(show: false),
@@ -371,7 +388,7 @@ class _ActionGrid extends StatelessWidget {
   final VoidCallback onInventoryTap;
   final int requestCount;
   final Animation<double> pulseAnimation;
-  
+
   const _ActionGrid({
     required this.onScanTap,
     required this.onRequestsTap,
@@ -379,7 +396,7 @@ class _ActionGrid extends StatelessWidget {
     required this.requestCount,
     required this.pulseAnimation,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -395,7 +412,7 @@ class _ActionGrid extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        
+
         // Scan Order (HERO)
         AnimatedBuilder(
           animation: pulseAnimation,
@@ -411,7 +428,8 @@ class _ActionGrid extends StatelessWidget {
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.qr_code_scanner, size: 36, color: Colors.white),
+                      Icon(Icons.qr_code_scanner,
+                          size: 36, color: Colors.white),
                       SizedBox(height: 4),
                       Text(
                         'SCAN',
@@ -429,9 +447,9 @@ class _ActionGrid extends StatelessWidget {
             );
           },
         ),
-        
+
         const SizedBox(width: 12),
-        
+
         // Inventory
         Expanded(
           child: _ActionCard(
@@ -452,7 +470,7 @@ class _ActionCard extends StatelessWidget {
   final Color color;
   final int badgeCount;
   final VoidCallback onTap;
-  
+
   const _ActionCard({
     required this.icon,
     required this.label,
@@ -460,7 +478,7 @@ class _ActionCard extends StatelessWidget {
     this.badgeCount = 0,
     required this.onTap,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -495,7 +513,10 @@ class _ActionCard extends StatelessWidget {
                   ),
                   child: Text(
                     '$badgeCount',
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -509,9 +530,9 @@ class _ActionCard extends StatelessWidget {
 class _OrderCard extends StatelessWidget {
   final dynamic order;
   final VoidCallback onTap;
-  
+
   const _OrderCard({required this.order, required this.onTap});
-  
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -529,7 +550,8 @@ class _OrderCard extends StatelessWidget {
                 color: AlphaTheme.primaryOrange.withOpacity(0.2),
                 borderRadius: AlphaTheme.chipRadius,
               ),
-              child: const Icon(Icons.card_giftcard, color: AlphaTheme.primaryOrange),
+              child: const Icon(Icons.card_giftcard,
+                  color: AlphaTheme.primaryOrange),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -538,7 +560,8 @@ class _OrderCard extends StatelessWidget {
                 children: [
                   Text(
                     order.recipientName,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                   Text(order.productName, style: AlphaTheme.captionText),
                 ],
