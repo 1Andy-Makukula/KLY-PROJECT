@@ -6,14 +6,20 @@ shop_dashboard.py - Shop Command Center Endpoints
 
 Implements:
 - Shop dashboard data (revenue, orders)
+- Pending escrow orders (real DB query)
 - Order management (status 300 ready for collection)
 - Emergency cancellation
 """
 
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from services.database import get_db
+from services.models import Transaction, EscrowStatus
 
 router = APIRouter(prefix="/shop", tags=["Shop Dashboard"])
 
@@ -21,6 +27,17 @@ router = APIRouter(prefix="/shop", tags=["Shop Dashboard"])
 # =============================================================================
 # MODELS
 # =============================================================================
+
+class PendingOrderItem(BaseModel):
+    """Safe subset of a Transaction exposed to the shop frontend."""
+    tx_ref: str
+    product_id: str
+    quantity: int
+    receiver_phone: str
+
+    class Config:
+        from_attributes = True
+
 
 class DashboardResponse(BaseModel):
     shop_id: str
@@ -109,6 +126,49 @@ async def get_shop_dashboard(shop_id: str):
         pending_orders=mock_pending,
         total_completed=47,
     )
+
+
+# =============================================================================
+# PENDING ESCROW ORDERS (Real DB Query)
+# =============================================================================
+
+@router.get(
+    "/{shop_id}/pending-orders",
+    response_model=List[PendingOrderItem],
+    summary="Fetch pending escrow orders for a shop",
+)
+async def get_pending_orders(
+    shop_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return every transaction that belongs to **shop_id** and is currently
+    locked in escrow (`status == ESCROW_LOCKED`).
+
+    Only safe fields are returned — `handshake_jwt` is deliberately excluded
+    so it never reaches the frontend.
+    """
+    stmt = (
+        select(Transaction)
+        .where(
+            Transaction.shop_id == shop_id,
+            Transaction.status == EscrowStatus.ESCROW_LOCKED,
+        )
+        .order_by(Transaction.created_at.asc())
+    )
+
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+
+    return [
+        PendingOrderItem(
+            tx_ref=row.tx_ref,
+            product_id=row.product_id,
+            quantity=row.quantity,
+            receiver_phone=row.receiver_phone,
+        )
+        for row in rows
+    ]
 
 
 @router.get("/{shop_id}/orders")

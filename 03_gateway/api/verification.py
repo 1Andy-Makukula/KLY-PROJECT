@@ -345,3 +345,27 @@ async def check_expired_escrows():
         "expired_found": expired_count,
         "refunds_triggered": refund_triggered,
     }
+
+
+# =============================================================================
+# TRANSACTION STATUS (Buyer Polling)
+# =============================================================================
+
+@router.get("/tx/{tx_ref}/status")
+async def get_transaction_status(
+    tx_ref: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Lightweight status check used by the Flutter buyer app to poll
+    for escrow state transitions (e.g. ESCROW_LOCKED → FUNDS_RELEASED).
+    """
+    stmt = select(Transaction).where(Transaction.tx_ref == tx_ref)
+    result = await db.execute(stmt)
+    tx = result.scalar_one_or_none()
+
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+
+    return {"status": tx.status.value}
+

@@ -104,6 +104,18 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  /// Fetch pending escrow orders (ESCROW_LOCKED) — safe fields only
+  Future<List<dynamic>> getPendingOrders(String shopId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/shop/$shopId/pending-orders'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load pending orders: ${response.statusCode}');
+    }
+    return jsonDecode(response.body);
+  }
+
   // ===========================================================================
   // PRODUCT CATALOG ENDPOINTS (Phase IV-Extension)
   // ===========================================================================
@@ -140,6 +152,18 @@ class ApiService {
     );
     if (response.statusCode != 200) {
       throw Exception('Verification failed: ${response.statusCode}');
+    }
+    return jsonDecode(response.body);
+  }
+
+  /// Poll transaction status (buyer-side live tracking)
+  Future<Map<String, dynamic>> getTransactionStatus(String txRef) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/verification/tx/$txRef/status'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get status: ${response.statusCode}');
     }
     return jsonDecode(response.body);
   }

@@ -9,6 +9,7 @@
 
 #include <string>
 #include <random>
+#include <sw/redis++/redis++.h>
 
 namespace Kithly {
 namespace Orchestrator {
@@ -27,7 +28,7 @@ std::string generate_handshake_token();
  * 
  * @param raw_json The raw string from Redis brpop
  */
-void process_gift_job(const std::string& raw_json);
+void process_gift_job(const std::string& raw_json, sw::redis::Redis& redis);
 
 } // namespace Orchestrator
 } // namespace Kithly

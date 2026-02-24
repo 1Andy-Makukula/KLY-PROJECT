@@ -120,6 +120,7 @@ class _ShopPortalState extends State<ShopPortal> with TickerProviderStateMixin {
       MaterialPageRoute(
         builder: (_) => QRScannerScreen(
           shopId: widget.shopId,
+          txId: 'test_tx', // Default txId injection
           onVerified: (result) {
             // Refresh dashboard after successful verification
             context.read<DashboardProvider>().loadDashboard(widget.shopId);

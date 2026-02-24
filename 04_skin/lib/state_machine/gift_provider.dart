@@ -1,14 +1,13 @@
 /// =============================================================================
-/// KithLy Global Protocol - GIFT STATE PROVIDER (Phase IV)
-/// gift_provider.dart - Provider State Management for Real-Time Updates
+/// KithLy Global Protocol - GIFT STATE PROVIDER (Phase IV - Offline First)
+/// gift_provider.dart - "Optimistic UI" & Write-Ahead Log
 /// =============================================================================
-///
-/// Location: lib/state_machine/ (as per user requirement)
-/// Uses: Provider package for reactive state management
 library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
+import '../services/sync_manager.dart';
 import 'protocol_mapper.dart';
 import '../services/kithly_api.dart';
 import '../services/payment_gate.dart';
@@ -34,6 +33,7 @@ class Gift {
   double? aiConfidence;
   DateTime createdAt;
   DateTime updatedAt;
+  bool isSyncing; // Flag for UI: show cloud/sync icon
 
   Gift({
     required this.txId,
@@ -55,6 +55,7 @@ class Gift {
     this.aiConfidence,
     required this.createdAt,
     required this.updatedAt,
+    this.isSyncing = false,
   });
 
   UIState get uiState =>
@@ -105,12 +106,14 @@ class GiftProvider extends ChangeNotifier {
   String get verificationPhase => _verificationPhase;
   String? get reroutedShopName => _reroutedShopName;
 
-  /// Initialize provider
+  /// Initialize provider & SyncManager heartbeat
   Future<void> init() async {
+    await SyncManager.instance.init();
     await _api.init();
   }
 
-  /// Create a new gift (Status: 100)
+  /// OFFLINE-FIRST: Create gift with Write-Ahead Log pattern.
+  /// We do NOT wait for the server. We create a local gift and queue sync.
   Future<Gift> createGift({
     required String receiverPhone,
     required String receiverName,
@@ -125,18 +128,25 @@ class GiftProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      final response = await _api.createGift(
-        receiverPhone: receiverPhone,
-        receiverName: receiverName,
-        shopId: shopId,
-        productId: productId,
-        quantity: quantity,
-        message: message,
-      );
+      // 1. Generate IDs locally
+      final idempotencyKey = const Uuid().v4();
+      final tempTxId = 'TEMP-${const Uuid().v4()}';
 
+      // 2. Build payload for SyncManager
+      final payload = {
+        'receiver_phone': receiverPhone,
+        'receiver_name': receiverName,
+        'shop_id': shopId,
+        'product_id': productId,
+        'quantity': quantity,
+        'message': message,
+        'idempotency_key': idempotencyKey,
+      };
+
+      // 3. Optimistic Update — show it on screen NOW
       final gift = Gift(
-        txId: response['tx_id'],
-        txRef: response['tx_ref'],
+        txId: tempTxId,
+        txRef: 'WAITING-FOR-NET',
         status: 100, // INITIATED
         receiverName: receiverName,
         receiverPhone: receiverPhone,
@@ -148,11 +158,17 @@ class GiftProvider extends ChangeNotifier {
         totalAmount: unitPrice * quantity,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        isSyncing: true, // Show cloud icon in UI
       );
 
-      _gifts[gift.txId] = gift;
+      _gifts[tempTxId] = gift;
       _activeGift = gift;
-      _startPolling(gift.txId);
+
+      // 4. Queue for background sync (persisted to SQLite)
+      await SyncManager.instance.enqueue(
+        endpoint: '/gifts/',
+        payload: payload,
+      );
 
       notifyListeners();
       return gift;
@@ -274,8 +290,11 @@ class GiftProvider extends ChangeNotifier {
     );
   }
 
-  /// Poll gateway for status update
+  /// Poll gateway for status update.
+  /// Skips TEMP- IDs — we can't poll server for those yet.
   Future<void> _pollStatus(String txId) async {
+    if (txId.startsWith('TEMP-')) return;
+
     try {
       final response = await _api.getGift(txId);
       final newStatus = response['status'] as int;

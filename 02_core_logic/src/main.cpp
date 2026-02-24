@@ -75,7 +75,7 @@ public:
                     std::cout << "Raw Payload: " << payload << std::endl;
                     
                     try {
-                        Kithly::Orchestrator::process_gift_job(payload);
+                        Kithly::Orchestrator::process_gift_job(payload, redis);
                     } catch (const std::exception& e) {
                         std::cerr << "[KITHLY ERROR] Failed to process payload: " << e.what() << std::endl;
                     }

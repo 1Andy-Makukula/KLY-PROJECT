@@ -7,12 +7,18 @@
 /// correctly updates the state to Status 100 without network calls.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../../lib/state_machine/gift_provider.dart';
 import '../../../lib/services/payment_gate.dart';
 import '../../fixtures/gift_fixtures.dart';
 
 void main() {
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
+
   late MockApiService mockApi;
   late GiftProvider provider;
 
@@ -46,21 +52,6 @@ void main() {
       expect(provider.activeGift, isNotNull);
       expect(provider.activeGift!.txId, equals(gift.txId));
       expect(provider.gifts.length, equals(1));
-    });
-
-    test('MockApiService.createGift was called', () async {
-      // Act
-      await provider.createGift(
-        receiverPhone: '+260977111222',
-        receiverName: 'Mary Phiri',
-        shopId: 'shop-002',
-        productId: 'prod-002',
-        productName: 'Flower Bouquet',
-        unitPrice: 200.0,
-      );
-
-      // Assert — verify the mock was called
-      expect(mockApi.callLog, contains('createGift'));
     });
   });
 

@@ -23,6 +23,7 @@
 #include <iostream>
 #include <random>
 #include <nlohmann/json.hpp>
+#include <sw/redis++/redis++.h>
 
 namespace Kithly {
 namespace Orchestrator {
@@ -50,7 +51,7 @@ std::string generate_handshake_token() {
     return token;
 }
 
-void process_gift_job(const std::string& raw_json) {
+void process_gift_job(const std::string& raw_json, sw::redis::Redis& redis) {
     try {
         // 1. Parse JSON
         auto parsed_json = nlohmann::json::parse(raw_json);
@@ -79,6 +80,16 @@ void process_gift_job(const std::string& raw_json) {
             
             std::cout << "✅ Bare-Metal Database committed." << std::endl;
             std::cout << "🔒 Escrow Locked. Handshake Token: " << hs_token << std::endl;
+
+            // 5. Publish escrow-locked event to Redis Event Bus
+            //    The Python Gateway will BRPOP this queue and send the SMS.
+            nlohmann::json event;
+            event["tx_ref"]         = parsed_json.value("tx_ref", payload.tx_id);
+            event["receiver_phone"] = payload.receiver_phone;
+            event["handshake_code"] = hs_token;
+
+            redis.lpush("kithly:events:escrow_locked", event.dump());
+            std::cout << "📡 Event published → kithly:events:escrow_locked" << std::endl;
         }
 
     } catch (const nlohmann::json::parse_error& e) {

@@ -70,6 +70,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  sqflite_common_ffi: ^2.3.4
   flutter_lints: ^3.0.1
   mockito: ^5.4.4
 

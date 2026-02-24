@@ -5,6 +5,9 @@ conftest.py - Shared pytest fixtures
 =============================================================================
 """
 
+import os
+os.environ["TESTING"] = "True"
+
 import pytest
 from fastapi.testclient import TestClient
 from app import app

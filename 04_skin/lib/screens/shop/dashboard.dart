@@ -14,6 +14,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../../theme/alpha_theme.dart';
 import '../../config/feature_flags.dart';
+import '../../services/api_service.dart';
 import '../../state_machine/dashboard_provider.dart';
 import '../shop_portal/qr_scanner_screen.dart';
 import '../shop_portal/delivery_dispatch_card.dart';
@@ -39,6 +40,9 @@ class _ShopDashboardState extends State<ShopDashboard>
   late Animation<double> _pulseAnimation;
   int _bakerRequestCount = 0; // Baker's Protocol pending count
 
+  /// Live pending orders fetched from GET /shop/{id}/pending-orders
+  List<Map<String, dynamic>> _livePendingOrders = [];
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +57,11 @@ class _ShopDashboardState extends State<ShopDashboard>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Load dashboard data
+    // Load dashboard data + live pending orders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().loadDashboard(widget.shopId);
       _loadBakerRequests();
+      _fetchLiveOrders();
     });
   }
 
@@ -71,13 +76,26 @@ class _ShopDashboardState extends State<ShopDashboard>
     setState(() => _bakerRequestCount = 2); // Mock
   }
 
+  /// Fetch live pending orders from the gateway
+  Future<void> _fetchLiveOrders() async {
+    try {
+      final data = await ApiService().getPendingOrders(widget.shopId);
+      if (!mounted) return;
+      setState(() {
+        _livePendingOrders = List<Map<String, dynamic>>.from(data);
+      });
+    } catch (e) {
+      debugPrint('[Dashboard] Failed to fetch live orders: $e');
+    }
+  }
+
   void _openScanner({String? txId}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => QRScannerScreen(
           shopId: widget.shopId,
-          txId: txId ?? '', // Pass selected txId or empty string
+          txId: txId ?? 'KLY-2026-2AC6812D', // Test TxId Injection
           onVerified: (result) {
             context.read<DashboardProvider>().loadDashboard(widget.shopId);
           },
@@ -130,7 +148,10 @@ class _ShopDashboardState extends State<ShopDashboard>
       body: Consumer<DashboardProvider>(
         builder: (context, dashboard, child) {
           return RefreshIndicator(
-            onRefresh: () => dashboard.loadDashboard(widget.shopId),
+            onRefresh: () async {
+              await dashboard.loadDashboard(widget.shopId);
+              await _fetchLiveOrders();
+            },
             color: AlphaTheme.primaryOrange,
             child: CustomScrollView(
               slivers: [
@@ -196,7 +217,7 @@ class _ShopDashboardState extends State<ShopDashboard>
                             borderRadius: AlphaTheme.chipRadius,
                           ),
                           child: Text(
-                            '${dashboard.pendingOrders.length}',
+                            '${_livePendingOrders.length}',
                             style: const TextStyle(
                               color: AlphaTheme.accentAmber,
                               fontWeight: FontWeight.bold,
@@ -208,28 +229,27 @@ class _ShopDashboardState extends State<ShopDashboard>
                   ),
                 ),
 
-                // Order cards
-                if (dashboard.pendingOrders.isNotEmpty)
+                // Order cards — driven by live API data
+                if (_livePendingOrders.isNotEmpty)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final order = dashboard.pendingOrders[index];
+                          final order = _livePendingOrders[index];
                           return _OrderCard(
                             order: order,
-                            onTap: () => _openScanner(
-                                txId: order.txId), // Pass txId to scanner
+                            onTap: () => _openScanner(txId: order['tx_ref']),
                           );
                         },
-                        childCount: dashboard.pendingOrders.length,
+                        childCount: _livePendingOrders.length,
                       ),
                     ),
                   ),
 
                 // Yango Bridge (Feature Flag)
                 if (FeatureFlags.enableManualDelivery &&
-                    dashboard.pendingOrders.isNotEmpty)
+                    _livePendingOrders.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -252,11 +272,12 @@ class _ShopDashboardState extends State<ShopDashboard>
                           ),
                           const SizedBox(height: 16),
                           DeliveryDispatchCard(
-                            txId: dashboard.pendingOrders.first.txId,
+                            txId: _livePendingOrders.first['tx_ref'] ?? '',
                             recipientName:
-                                dashboard.pendingOrders.first.recipientName,
+                                _livePendingOrders.first['receiver_phone'] ??
+                                    '',
                             productName:
-                                dashboard.pendingOrders.first.productName,
+                                _livePendingOrders.first['product_id'] ?? '',
                           ),
                         ],
                       ),
@@ -528,13 +549,17 @@ class _ActionCard extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  final dynamic order;
+  final Map<String, dynamic> order;
   final VoidCallback onTap;
 
   const _OrderCard({required this.order, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final recipientName = order['receiver_phone'] ?? 'Unknown';
+    final productName = order['product_id'] ?? 'Unknown';
+    final quantity = order['quantity'] ?? 1;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -559,16 +584,16 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    order.recipientName,
+                    recipientName,
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.w600),
                   ),
-                  Text(order.productName, style: AlphaTheme.captionText),
+                  Text(productName, style: AlphaTheme.captionText),
                 ],
               ),
             ),
             Text(
-              order.collectionToken,
+              'x$quantity',
               style: const TextStyle(
                 color: AlphaTheme.accentGreen,
                 fontFamily: 'monospace',

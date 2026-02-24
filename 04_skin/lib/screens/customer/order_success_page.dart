@@ -7,12 +7,14 @@
 /// Phases: verifying → confirmed | rerouting_search → rerouted
 library;
 
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../theme/alpha_theme.dart';
 import '../../state_machine/gift_provider.dart';
+import '../../services/api_service.dart';
 
 /// Order Success Page with Protocol HUD
 class OrderSuccessPage extends StatefulWidget {
@@ -39,6 +41,10 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
 
   // Track previous phase to detect transitions
   String _previousPhase = 'idle';
+
+  // Escrow polling (starts when phase becomes 'confirmed')
+  Timer? _pollTimer;
+  bool _isDelivered = false;
 
   @override
   void initState() {
@@ -68,6 +74,7 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _scanPulseController.dispose();
     _radarController.dispose();
     _confettiController.dispose();
@@ -83,11 +90,40 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
         _confettiController.forward();
       }
     }
+
+    // Start escrow polling once the local phase reaches 'confirmed'
+    if (newPhase == 'confirmed' && _pollTimer == null) {
+      _pollTimer = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => _pollEscrowStatus(),
+      );
+    }
+
     _previousPhase = newPhase;
+  }
+
+  Future<void> _pollEscrowStatus() async {
+    if (_isDelivered) return;
+    try {
+      final data = await ApiService().getTransactionStatus(widget.txId);
+      if (!mounted) return;
+      if (data['status'] == 'FUNDS_RELEASED') {
+        _pollTimer?.cancel();
+        HapticFeedback.heavyImpact();
+        setState(() => _isDelivered = true);
+      }
+    } catch (_) {
+      // Network error — will retry on next tick
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Once the backend confirms FUNDS_RELEASED, show the delivered screen
+    if (_isDelivered) {
+      return _buildDeliveredScreen();
+    }
+
     return Scaffold(
       backgroundColor: AlphaTheme.backgroundDark,
       body: Consumer<GiftProvider>(
@@ -112,6 +148,94 @@ class _OrderSuccessPageState extends State<OrderSuccessPage>
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// Full-screen green "Delivered" view shown when API returns FUNDS_RELEASED.
+  Widget _buildDeliveredScreen() {
+    return Scaffold(
+      backgroundColor: AlphaTheme.backgroundDark,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(scale: value, child: child);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: AlphaTheme.accentGreen.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AlphaTheme.accentGreen.withOpacity(0.3),
+                          blurRadius: 50,
+                          spreadRadius: 15,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AlphaTheme.accentGreen,
+                      size: 80,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Text(
+                  'Delivered!',
+                  style: TextStyle(
+                    color: AlphaTheme.accentGreen,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Your recipient has successfully\nreceived the item.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AlphaTheme.textSecondary,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.of(context).popUntil((r) => r.isFirst),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AlphaTheme.accentGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: AlphaTheme.buttonRadius,
+                      ),
+                    ),
+                    child: const Text(
+                      'Back to Home',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
